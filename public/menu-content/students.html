@@ -1,0 +1,582 @@
+<style>
+    .students_overview_container {
+        display: flex;
+        justify-content: space-between;  /* 양 끝 정렬 + 요소 사이 균등 분배 */
+        align-items: center;
+        gap: 20px;
+    }
+
+    .students_overview_wrapper {
+        width: 30%;
+        height: 60px;
+        flex-direction: row;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        padding: 20px 20px;
+        gap: 15px;
+    }
+
+    .students_overview_wrapper h1 {
+        font-size: 18px;
+        font-weight: normal;
+        color: #545861;
+    }
+    .students_overview_wrapper h2 {
+        font-size: 24px;
+        font-weight: bold;
+        color: #FFFFFF;
+    }
+
+    .table_container {
+        width: 100%;
+    }
+    .table_container .table_header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+    }
+    .table_container .table_header .searchbox {
+        width: 30%;
+        height: 40px;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        display: flex;
+    }
+    .table_container .table_header .searchbox input {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background-color: #ffffff00;
+        border-radius: 10px;
+        padding-left: 10px;
+    }
+    .table_container .table_header .searchbox input ::placeholder {
+        color: #545861;
+    }
+    .table_container .table_header .button_group {
+        display: flex;
+        gap: 10px;
+    }
+    .table_container .table_header .button_group .button {
+        width: 100px;
+        height: 40px;
+        background-color: #7F56D9;
+        color: #FFFFFF;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+    .table_container .table_header .button_group .button:hover {
+        background-color: #6C4CC3;
+    }
+    .table_container .table_content {
+        margin-top: 20px;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+    }
+    .table_container .table_content table {
+        width: 100%;
+        border-collapse: collapse;
+        border-radius: 10px;
+        background-color: #13161B;
+
+    }
+    .table_container .table_content table thead {
+        color: #545861;
+        height: 44px;
+        text-align: left;
+        border-radius: 10px;
+    }
+    .table_container .table_content table thead tr {
+        border-radius: 10px;
+    }
+    .table_container .table_content table thead th {
+        padding-left: 20px;
+    }
+    .table_container .table_content table tbody {
+        background-color: #0C0E12;
+        color: #FFFFFF;
+        text-align: left;
+    }
+    .table_container .table_content table tbody tr {
+        height: 60px;
+        border-bottom: 1px solid #22262F;
+    }
+    .table_container .table_content table tbody td {
+        padding-left: 20px;
+    }
+
+    .table_container .table_content table tbody td h1 {
+        font-size: 16px;
+        font-weight: normal;
+    }
+    .table_container .table_content table tbody td svg {
+        cursor: pointer;
+    }
+    .table_container .table_footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 60px;
+        border-bottom: 1px solid #22262F;
+        border-left: 1px solid #22262F;
+        border-right: 1px solid #22262F;
+        border-bottom-right-radius: 10px;
+        border-bottom-left-radius: 10px;
+        padding: 0 20px;
+    }
+    .table_container .table_footer .page_button {
+        width: 100px;
+        height: 40px;
+        color: #FFFFFF;
+        background-color: #0C0E12;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+    .table_container .table_footer .page_button:hover {
+        background-color: #1E2128;
+    }
+    .table_container .table_footer h1 {
+        color: #545861;
+        font-size: 16px;
+    }
+        /* 모달을 어둡게 처리하기 위해 배경을 덮는 요소 */
+    .modal-overlay {
+      position: fixed;
+      /* 화면 전체 덮기 */
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+
+      /* 투명도 및 배경색 */
+      background-color: rgba(0, 0, 0, 0.7);
+
+      /* 처음엔 안 보이도록 설정 */
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* 모달 컨텐츠 */
+    .modal-content {
+      background-color: #fff;
+      padding: 20px;
+      max-width: 800px;
+      width: 80%;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    /* 모달 제목 */
+    .modal-content h2 {
+        color: #6C4CC3;
+      margin-top: 0;
+      margin-bottom: 30px;
+    }
+
+    /* 닫기 버튼 스타일 */
+    .close-btn {
+        width: 100px;
+        height: 40px;
+        background-color: #FFFFFF;
+        border: 1px solid #1E2128;
+        color: #1E2128;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+    .close-btn:hover {
+        background-color: #dddddd;
+    }
+    .submit-btn {
+        width: 100px;
+        height: 40px;
+        background-color: #7F56D9;
+        color: #FFFFFF;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+    .submit-btn:hover {
+        background-color: #6C4CC3;
+    }
+
+    /* 모달이 보일 때 (display: flex)로 설정 가능) */
+    .show {
+      display: flex !important;
+    }
+
+
+    /* Tab Navigation Styles */
+    .tab-navigation {
+        display: flex;
+        border-bottom: 1px solid #22262F;
+        margin-bottom: 20px;
+        width: 100%;
+        flex-shrink: 0;
+    }
+    
+    .tab-button {
+        flex: 1;
+        padding: 10px 20px;
+        background-color: transparent;
+        border: none;
+        color: #545861;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .tab-button.active {
+        color: #7F56D9;
+    }
+    
+    .tab-button.active:after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-color: #7F56D9;
+    }
+    
+    /* Tab Content Styles */
+    .tab-content {
+        display: none;
+        padding: 20px 0;
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+    
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 15px;
+        width: 100%;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #22262F;
+        border-radius: 8px;
+        background-color: #ffffff;
+        margin-bottom: 10px;
+    }
+    
+    .form-actions {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        width: 100%;
+    }
+    
+    /* Multiple Students Tab Styles */
+    .common-fields-section, .students-list-section {
+        margin-bottom: 20px;
+    }
+    
+    .common-fields-section h3, .students-list-section h3 {
+        color: #545861;
+        margin-bottom: 15px;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    
+    .divider {
+        height: 1px;
+        background-color: #22262F;
+        margin: 20px 0;
+        opacity: 0.5;
+    }
+    
+    .student-entry {
+        border: 1px solid #22262F;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: rgba(127, 86, 217, 0.05);
+    }
+    
+    .entry-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    
+    .entry-number {
+        font-weight: 600;
+        color: #6C4CC3;
+    }
+    
+    .remove-entry {
+        color: #FF5555;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    
+    .add-student-btn {
+        width: 100%;
+        padding: 10px;
+        background-color: transparent;
+        border: 1px dashed #7F56D9;
+        color: #7F56D9;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-top: 10px;
+        transition: all 0.3s ease;
+    }
+    
+    .add-student-btn:hover {
+        background-color: rgba(127, 86, 217, 0.1);
+    }
+    
+    .alternative-option {
+        margin-top: 30px;
+        padding: 15px;
+        border-top: 1px solid #22262F;
+        text-align: center;
+    }
+    
+    .alternative-option p {
+        color: #545861;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+    
+    .file-upload-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin: 15px 0;
+        justify-content: center;
+    }
+    
+    .file-upload-input {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        z-index: 10;
+    }
+    
+    .file-upload-label {
+        display: inline-block;
+        padding: 8px 16px;
+        background-color: #7F56D9;
+        color: #FFFFFF;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+    
+    .file-upload-label:hover {
+        background-color: #6C4CC3;
+    }
+    
+    .file-name {
+        margin-left: 10px;
+        font-size: 14px;
+        color: #545861;
+    }
+    
+    .sample-download {
+        margin-top: 10px;
+    }
+    
+    .sample-download a {
+        color: #7F56D9;
+        text-decoration: underline;
+        font-size: 14px;
+    }
+    
+    /* Modal content adjustments */
+    .modal-content {
+        background-color: #ffffff;
+        color: #1E2128;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .modal-content h2 {
+        margin-bottom: 30px;
+    }
+    
+    .tab-content {
+        overflow-y: auto;
+        max-height: calc(80vh - 180px);
+        padding-right: 10px;
+    }
+</style>
+
+<div class="students_overview_container">
+    <div class="students_overview_wrapper" id="total_students">
+        <h1>Recently added</h1>
+        <h2>11</h2>
+    </div>
+    <div class="students_overview_wrapper" id="total_students">
+        <h1>Total students</h1>
+        <h2></h2>
+    </div>
+    <div class="students_overview_wrapper" id="total_students">
+        <h1>Active now</h1>
+        <h2></h2>
+    </div>
+</div>
+
+<div class="table_container">
+    <div class="table_header">
+        <div class="searchbox">
+            <input type="text" placeholder="Search">
+        </div>
+        <div class="button_group">
+            <button class="button" id="openModalBtn">Add student</button>
+        </div>
+    </div>
+    <div class="table_content">
+        <table>
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>School</th>
+                    <th>Generation</th>
+                    <th>Phone</th>
+                    <th>Enrollment Date</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            </tbody>
+        </table>
+        <div class="table_footer">
+            <button class="page_button" id="previous_button">Previous</button>
+            <h1 class="range_info">Page 1 of 10</h1>
+            <button class="page_button" id="next_button">Next</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- Updated modal with tab view -->
+<div class="modal-overlay" id="add-student-modal">
+    <div class="modal-content">
+        <h2>Add Students</h2>
+        
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class="tab-button active" data-tab="single-student">Add Single Student</button>
+            <button class="tab-button" data-tab="multiple-students">Add Multiple Students</button>
+        </div>
+        
+        <!-- Single Student Tab Content -->
+        <div class="tab-content active" id="single-student-tab">
+            <div class="form-group">
+                <input type="text" placeholder="Name" class="form-input">
+            </div>
+            <div class="form-group">
+                <input type="text" placeholder="School" class="form-input">
+            </div>
+            <div class="form-group">
+                <input type="text" placeholder="Generation" class="form-input">
+            </div>
+            <div class="form-group">
+                <input type="text" placeholder="Phone" class="form-input">
+            </div>
+            <div class="form-group">
+                <input type="text" placeholder="Enrollment Date" class="form-input" id="single-enrollment-date">
+            </div>
+            <div class="form-actions">
+                <button class="submit-btn" id="submitSingleBtn">Submit</button>
+            </div>
+        </div>
+        
+        <!-- Multiple Students Tab Content -->
+        <div class="tab-content" id="multiple-students-tab">
+            <!-- Common fields for all students -->
+            <div class="common-fields-section">
+                <h3>Common Information</h3>
+                <div class="form-group">
+                    <input type="text" placeholder="School (applies to all)" class="form-input" id="common-school">
+                </div>
+                <div class="form-group">
+                    <input type="text" placeholder="Generation (applies to all)" class="form-input" id="common-generation">
+                </div>
+                <div class="form-group">
+                    <input type="text" placeholder="Enrollment Date (applies to all)" class="form-input" id="common-enrollment-date">
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <!-- Individual student entries -->
+            <div class="students-list-section">
+                <h3>Student Details</h3>
+                <div id="student-entries-container">
+                    <!-- First student entry (always present) -->
+                    <div class="student-entry" data-entry-index="0">
+                        <div class="entry-header">
+                            <span class="entry-number">Student 1</span>
+                        </div>
+                        <div class="form-group">
+                            <input type="text" placeholder="Name" class="form-input student-name">
+                        </div>
+                        <div class="form-group">
+                            <input type="text" placeholder="Phone" class="form-input student-phone">
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="add-student-btn" id="add-more-students">
+                    <span>+ Add another student</span>
+                </button>
+            </div>
+            
+            <div class="form-actions">
+                <button class="submit-btn" id="submitMultipleBtn">Add Students</button>
+            </div>
+            
+            <!-- Alternative CSV upload option -->
+            <div class="alternative-option">
+                <p>Alternatively, upload an Excel file</p>
+                <form id="file-upload-form" enctype="multipart/form-data">
+                    <div class="file-upload-wrapper">
+                        <label for="file-input" class="file-upload-label">
+                            <span>Choose File</span>
+                        </label>
+                        <input type="file" id="file-input" name="file" accept=".xlsx,.xls,.csv" class="file-upload-input">
+                        <span class="file-name">No file chosen</span>
+                    </div>
+                    <button type="submit" class="submit-btn mt-10">Upload File</button>
+                </form>
+                <p class="file-format-info">File should contain columns: Name, Phone (School, Generation, Enrollment Date optional)</p>
+                <div class="sample-download">
+                    <a href="#" id="download-sample">Download sample Excel template</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="button-container">
+            <button class="close-btn" id="closeModalBtn">Close</button>
+        </div>
+    </div>
+</div>
