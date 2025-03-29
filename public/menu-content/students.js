@@ -363,7 +363,7 @@
             await new Promise(resolve => setTimeout(resolve, 1000));
             
             // Uncomment to actually submit when ready
-            /*
+            
             const response = await fetch('/add-student', {
                 method: 'POST',
                 headers: {
@@ -378,7 +378,7 @@
             
             const result = await response.json();
             console.log('Server response:', result);
-            */
+            
             
             alert('Student added successfully!');
             
@@ -439,7 +439,7 @@
             await new Promise(resolve => setTimeout(resolve, 1000));
             
             // Uncomment to actually submit when ready
-            /*
+            
             const response = await fetch('/add-student', {
                 method: 'POST',
                 headers: {
@@ -454,7 +454,7 @@
             
             const result = await response.json();
             console.log('Server response:', result);
-            */
+            
             
             alert(`${studentsData.length} students added successfully!`);
             

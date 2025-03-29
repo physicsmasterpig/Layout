@@ -18,6 +18,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Configure file upload storage
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
+    // Create uploads directory if it doesn't exist
+    if (!fs.existsSync('uploads')) {
+      fs.mkdirSync('uploads');
+    }
     cb(null, 'uploads/');
   },
   filename: function(req, file, cb) {
@@ -26,34 +30,42 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// Google Sheets API setup
-const setupGoogleSheetsAPI = () => {
-  try {
-    const keys = JSON.parse(fs.readFileSync('credential.json', 'utf8'));
-    const client = new google.auth.JWT(
-      keys.client_email,
-      null,
-      keys.private_key.replace(/\\n/g, '\n'),
-      ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
-    );
-    
-    client.authorize((err) => {
-      if (err) {
-        console.error('Error connecting to Google Sheets API:', err);
-        return null;
-      } else {
-        console.log('Connected to Google Sheets API');
-      }
-    });
-    
-    return google.sheets({ version: 'v4', auth: client });
-  } catch (error) {
-    console.error('Failed to initialize Google Sheets API:', error);
-    return null;
-  }
-};
+// Google API Authentication
+let sheets, drive;
 
-const sheets = setupGoogleSheetsAPI();
+try {
+  const keys = JSON.parse(fs.readFileSync('credential.json', 'utf8'));
+  const client = new google.auth.JWT(
+    keys.client_email,
+    null,
+    keys.private_key.replace(/\\n/g, '\n'),
+    ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+  );
+  
+  client.authorize((err) => {
+    if (err) {
+      console.error('Error connecting to Google APIs:', err);
+      return;
+    } else {
+      console.log('Connected to Google APIs');
+      
+      // Initialize both APIs after successful authentication
+      sheets = google.sheets({ version: 'v4', auth: client });
+      drive = google.drive({ version: 'v3', auth: client });
+      
+      // Optionally create app folder on startup
+      createAppFolder().then(folderId => {
+        console.log(`App folder created or found with ID: ${folderId}`);
+        app.locals.driveFolderId = folderId; // Store folder ID in app locals for later use
+      }).catch(error => {
+        console.error('Failed to create app folder:', error);
+      });
+    }
+  });
+} catch (error) {
+  console.error('Failed to initialize Google APIs:', error);
+}
+
 const spreadsheetId = "1NbcwKdFAwm0RRw5JIpaOMtCibWM_9gsUbYCOQ2GUNlI";
 
 // Define sheet ranges
@@ -70,6 +82,127 @@ const sheetsRange = {
   'score': 'score!A2:I'     
 };
 
+// Create a folder in Drive (run once to set up)
+async function createAppFolder() {
+  try {
+    // First check if the folder already exists
+    const response = await drive.files.list({
+      q: "mimeType='application/vnd.google-apps.folder' and name='BrainDB_Uploads' and trashed=false",
+      fields: 'files(id, name)'
+    });
+    
+    if (response.data.files.length > 0) {
+      console.log('App folder already exists:', response.data.files[0].id);
+      return response.data.files[0].id;
+    }
+    
+    // Create new folder if it doesn't exist
+    const folderMetadata = {
+      name: 'BrainDB_Uploads',
+      mimeType: 'application/vnd.google-apps.folder'
+    };
+    
+    const folder = await drive.files.create({
+      resource: folderMetadata,
+      fields: 'id'
+    });
+    
+    console.log('New folder created with ID:', folder.data.id);
+    return folder.data.id;
+  } catch (error) {
+    console.error('Error with app folder:', error);
+    throw error;
+  }
+}
+
+// Upload a file to Google Drive
+async function uploadFileToDrive(filePath, fileName, folderId) {
+  try {
+    const fileMetadata = {
+      name: fileName,
+      parents: [folderId]
+    };
+    
+    const media = {
+      mimeType: getMimeType(fileName),
+      body: fs.createReadStream(filePath)
+    };
+    
+    const file = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id,webViewLink'
+    });
+    
+    return {
+      fileId: file.data.id,
+      webViewLink: file.data.webViewLink
+    };
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    throw error;
+  }
+}
+
+// Helper to determine MIME type
+function getMimeType(fileName) {
+  const ext = path.extname(fileName).toLowerCase();
+  const mimeTypes = {
+    '.pdf': 'application/pdf',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg'
+  };
+  
+  return mimeTypes[ext] || 'application/octet-stream';
+}
+
+// Serve assets directory
+app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
+
+
+// File upload endpoint
+app.post('/upload-file', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send({ error: 'No file uploaded' });
+    }
+    
+    if (!drive) {
+      return res.status(500).send({ error: 'Drive API not initialized' });
+    }
+    
+    const filePath = req.file.path;
+    const fileName = req.file.originalname;
+    
+    // Get the folder ID from app locals or create a new folder
+    let folderId = app.locals.driveFolderId;
+    if (!folderId) {
+      folderId = await createAppFolder();
+      app.locals.driveFolderId = folderId;
+    }
+    
+    // Upload to Google Drive
+    const driveFile = await uploadFileToDrive(filePath, fileName, folderId);
+    
+    // Clean up the temporary file
+    fs.unlinkSync(filePath);
+    
+    res.status(200).send({
+      message: 'File uploaded successfully',
+      fileId: driveFile.fileId,
+      fileUrl: driveFile.webViewLink
+    });
+  } catch (error) {
+    console.error('Error processing file upload:', error);
+    res.status(500).send({ error: error.message });
+  }
+});
+
 // Routes
 app.get('/render/:page', (req, res) => {
   const { page } = req.params;
@@ -84,6 +217,10 @@ app.get('/render/:page', (req, res) => {
 // Load list from Google Sheets
 app.get('/load-list/:id', async (req, res) => {
   const { id } = req.params;
+  
+  if (!sheets) {
+    return res.status(503).send({ error: 'Google Sheets API not initialized' });
+  }
   
   if (!sheetsRange[id]) {
     return res.status(400).send({ error: 'Invalid sheet ID' });
@@ -102,6 +239,10 @@ app.get('/load-list/:id', async (req, res) => {
 
 // Add single student or multiple students
 app.post('/add-student', async (req, res) => {
+  if (!sheets) {
+    return res.status(503).send({ error: 'Google Sheets API not initialized' });
+  }
+  
   try {
     const students = Array.isArray(req.body) ? req.body : [req.body];
     
@@ -135,6 +276,10 @@ app.post('/add-student', async (req, res) => {
 
 // Upload student data from Excel/CSV file
 app.post('/upload-student-file', upload.single('file'), async (req, res) => {
+  if (!sheets) {
+    return res.status(503).send({ error: 'Google Sheets API not initialized' });
+  }
+  
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -191,6 +336,258 @@ app.post('/upload-student-file', upload.single('file'), async (req, res) => {
     });
   } catch (err) {
     console.error('Error processing uploaded file:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// Add these routes to server.js for class management with the updated database structure
+
+// Add a new class with lectures and enrollment
+app.post('/add-class', async (req, res) => {
+  try {
+    const classData = req.body;
+    
+    // 1. Add the class
+    const classValues = [
+      classData.class_id,
+      classData.school,
+      classData.year,
+      classData.semester,
+      classData.generation,
+      classData.schedule,
+      classData.status
+    ];
+    
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: sheetsRange.class,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: [classValues] }
+    });
+    
+    // 2. Add lectures
+    if (classData.lectures && classData.lectures.length > 0) {
+      const lectureValues = classData.lectures.map(lecture => [
+        lecture.lecture_id,
+        classData.class_id,
+        lecture.lecture_date,
+        lecture.lecture_time,
+        lecture.lecture_topic
+      ]);
+      
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: sheetsRange.lecture,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: lectureValues }
+      });
+    }
+    
+    // 3. Add student enrollments
+    if (classData.enrollments && classData.enrollments.length > 0) {
+      const enrollmentValues = classData.enrollments.map(enrollment => [
+        enrollment.enrollment_id,
+        enrollment.student_id,
+        classData.class_id,
+        enrollment.enrollment_date
+      ]);
+      
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: sheetsRange.enrollment,
+        valueInputOption: 'USER_ENTERED',
+        resource: { values: enrollmentValues }
+      });
+    }
+    
+    res.status(200).json({
+      message: 'Class created successfully',
+      class_id: classData.class_id,
+      lectures_added: classData.lectures ? classData.lectures.length : 0,
+      enrollments_added: classData.enrollments ? classData.enrollments.length : 0
+    });
+    
+  } catch (err) {
+    console.error('Error adding class:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get class details (lectures and enrolled students)
+app.get('/class-details/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 1. Get class data
+    const classResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: sheetsRange.class
+    });
+    
+    const classRows = classResponse.data.values || [];
+    const classData = classRows.find(row => row[0] == id);
+    
+    if (!classData) {
+      return res.status(404).json({ error: 'Class not found' });
+    }
+    
+    // 2. Get lectures for this class
+    const lecturesResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: sheetsRange.lecture
+    });
+    
+    const lectureRows = lecturesResponse.data.values || [];
+    const lectures = lectureRows
+      .filter(row => row[1] == id)
+      .map(row => ({
+        lecture_id: row[0],
+        class_id: row[1],
+        lecture_date: row[2],
+        lecture_time: row[3],
+        lecture_topic: row[4]
+      }));
+    
+    // 3. Get enrollment data for this class
+    const enrollmentResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: sheetsRange.enrollment
+    });
+    
+    const enrollmentRows = enrollmentResponse.data.values || [];
+    const enrollments = enrollmentRows
+      .filter(row => row[2] == id)
+      .map(row => ({
+        enrollment_id: row[0],
+        student_id: row[1],
+        class_id: row[2],
+        enrollment_date: row[3]
+      }));
+    
+    // 4. Get student data for enrolled students
+    const studentResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: sheetsRange.student
+    });
+    
+    const studentRows = studentResponse.data.values || [];
+    const enrolledStudents = enrollments.map(enrollment => {
+      const studentData = studentRows.find(row => row[0] == enrollment.student_id);
+      return studentData ? {
+        student_id: studentData[0],
+        name: studentData[1],
+        school: studentData[2],
+        generation: studentData[3],
+        number: studentData[4],
+        enrollment_date: enrollment.enrollment_date
+      } : null;
+    }).filter(student => student !== null);
+    
+    // 5. Compose the response
+    const classDetails = {
+      class_id: classData[0],
+      school: classData[1],
+      year: classData[2],
+      semester: classData[3],
+      generation: classData[4],
+      schedule: classData[5],
+      status: classData[6],
+      lectures: lectures,
+      enrolled_students: enrolledStudents
+    };
+    
+    res.status(200).json(classDetails);
+    
+  } catch (err) {
+    console.error('Error fetching class details:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add attendance for a lecture
+app.post('/attendance', async (req, res) => {
+  try {
+    const { lecture_id, attendance_data } = req.body;
+    
+    if (!lecture_id || !attendance_data || !Array.isArray(attendance_data)) {
+      return res.status(400).json({ error: 'Invalid request data' });
+    }
+    
+    // Format attendance records
+    const attendanceValues = attendance_data.map(record => [
+      record.attendance_id,      // Generate a unique ID for each attendance record
+      lecture_id,                // The lecture ID
+      record.student_id,         // Student ID
+      record.status              // Attendance status (e.g., "ATT" for attended)
+    ]);
+    
+    // Add attendance records
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: sheetsRange.attendance,
+      valueInputOption: 'USER_ENTERED',
+      resource: { values: attendanceValues }
+    });
+    
+    res.status(200).json({
+      message: 'Attendance recorded successfully',
+      attendance_records: attendanceValues.length
+    });
+    
+  } catch (err) {
+    console.error('Error recording attendance:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get attendance for a lecture
+app.get('/attendance/:lecture_id', async (req, res) => {
+  try {
+    const { lecture_id } = req.params;
+    
+    // Get all attendance records for this lecture
+    const attendanceResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: sheetsRange.attendance
+    });
+    
+    const attendanceRows = attendanceResponse.data.values || [];
+    const lectureAttendance = attendanceRows
+      .filter(row => row[1] == lecture_id)
+      .map(row => ({
+        attendance_id: row[0],
+        lecture_id: row[1],
+        student_id: row[2],
+        status: row[3]
+      }));
+    
+    // Get student data for context
+    const studentResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: sheetsRange.student
+    });
+    
+    const studentRows = studentResponse.data.values || [];
+    
+    // Combine attendance with student data
+    const attendanceWithStudentInfo = lectureAttendance.map(attendance => {
+      const studentData = studentRows.find(row => row[0] == attendance.student_id);
+      return {
+        ...attendance,
+        student_name: studentData ? studentData[1] : 'Unknown',
+        student_school: studentData ? studentData[2] : 'Unknown',
+        student_generation: studentData ? studentData[3] : 'Unknown'
+      };
+    });
+    
+    res.status(200).json({
+      lecture_id,
+      attendance: attendanceWithStudentInfo
+    });
+    
+  } catch (err) {
+    console.error('Error fetching attendance:', err);
     res.status(500).json({ error: err.message });
   }
 });
