@@ -3,1232 +3,816 @@
     // Constants
     const ROWS_PER_PAGE = 10;
     
+    // DOM Element References
+    const elements = {
+        // Tab Navigation
+        tabButtons: document.querySelectorAll('.tab-button'),
+        tabContents: document.querySelectorAll('.tab-content'),
+        
+        // Overview counters
+        totalExamsCount: document.getElementById('total-exams-count'),
+        totalProblemsCount: document.getElementById('total-problems-count'),
+        activeExamsCount: document.getElementById('active-exams-count'),
+        
+        // Exam Maker Tab
+        examTitle: document.getElementById('exam-title'),
+        examClass: document.getElementById('exam-class'),
+        examDate: document.getElementById('exam-date'),
+        examDescription: document.getElementById('exam-description'),
+        examTotalPoints: document.getElementById('exam-total-points'),
+        examStatus: document.getElementById('exam-status'),
+        problemSearchInput: document.getElementById('problem-search-input'),
+        problemFilterDifficulty: document.getElementById('problem-filter-difficulty'),
+        problemFilterCategory: document.getElementById('problem-filter-category'),
+        problemsList: document.getElementById('problems-list'),
+        saveExamBtn: document.getElementById('save-exam-btn'),
+        cancelExamBtn: document.getElementById('cancel-exam-btn'),
+        
+        // Upload Problem Tab
+        problemTitle: document.getElementById('problem-title'),
+        problemDifficulty: document.getElementById('problem-difficulty'),
+        problemStatement: document.getElementById('problem-statement'),
+        problemSolution: document.getElementById('problem-solution'),
+        fileDropArea: document.getElementById('file-drop-area'),
+        problemFileInput: document.getElementById('problem-file-input'),
+        filePreview: document.getElementById('file-preview'),
+        fileName: document.getElementById('file-name'),
+        fileSize: document.getElementById('file-size'),
+        removeFileBtn: document.getElementById('remove-file-btn'),
+        downloadTemplateBtn: document.getElementById('download-template-btn'),
+        saveProblemBtn: document.getElementById('save-problem-btn'),
+        cancelProblemBtn: document.getElementById('cancel-problem-btn'),
+        
+        // Overview Tab
+        examsTableBody: document.getElementById('exams-table-body'),
+        createExamBtn: document.getElementById('create-exam-btn'),
+        prevPageBtn: document.getElementById('prev-page-btn'),
+        nextPageBtn: document.getElementById('next-page-btn'),
+        startItem: document.getElementById('start-item'),
+        endItem: document.getElementById('end-item'),
+        totalItems: document.getElementById('total-items')
+    };
+    
     // State
-    let currentTags = [];
-    let availableTags = [];
+    let currentPage = 1;
     let selectedProblems = [];
-    let problems = [];
-    let exams = [];
-    let lectures = [];
+    let allProblems = [];
+    let allExams = [];
+    let filteredProblems = [];
+    let selectedFile = null;
     
     // Initialize the page
     async function initPage() {
-        console.log("Initializing exams page");
         setupEventListeners();
-        setDefaultValues();
+        setDefaultDate();
+        await loadData();
+        updateCounts();
+        renderProblemsList();
+        renderExamsTable();
+    }
+    
+    // Handle tab navigation
+    function handleTabClick(e) {
+        // Remove active class from all tabs
+        elements.tabButtons.forEach(btn => btn.classList.remove('active'));
+        elements.tabContents.forEach(content => content.classList.remove('active'));
         
-        try {
-            await window.appUtils.showLoadingIndicator();
-            await Promise.all([
-                loadProblems(),
-                loadExams(),
-                loadLectures()
-            ]);
-            updateCounters();
-        } catch (error) {
-            console.error('Error initializing page:', error);
-        } finally {
-            await window.appUtils.hideLoadingIndicator();
+        // Add active class to clicked tab
+        e.target.classList.add('active');
+        
+        // Show the corresponding content
+        const tabId = e.target.getAttribute('data-tab') + '-tab';
+        document.getElementById(tabId).classList.add('active');
+    }
+    
+    // Set default date to today
+    function setDefaultDate() {
+        if (elements.examDate) {
+            const today = new Date();
+            const formattedDate = formatDateForInput(today);
+            elements.examDate.value = formattedDate;
         }
+    }
+    
+    // Format date for input field (YYYY-MM-DD)
+    function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
+    // Format date for display (Month DD, YYYY)
+    function formatDateForDisplay(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+    
+    // Capitalize first letter of a string
+    function capitalizeFirstLetter(string) {
+        if (!string) return '';
+        return string.charAt(0).toUpperCase() + string.slice(1);
     }
     
     // Setup all event listeners
     function setupEventListeners() {
-        console.log("Setting up event listeners");
-        
-        // Main tab navigation
-        document.querySelectorAll('.main_tab_button').forEach(button => {
-            button.addEventListener('click', () => {
-                const tabId = button.getAttribute('data-tab');
-                switchMainTab(tabId);
-            });
+        // Tab Navigation
+        elements.tabButtons.forEach(button => {
+            button.addEventListener('click', handleTabClick);
         });
         
-        // Problem upload form
-        const addTagBtn = document.getElementById('add-tag-btn');
-        if (addTagBtn) {
-            addTagBtn.addEventListener('click', addTag);
+        // Exam Maker Events
+        if (elements.saveExamBtn) {
+            elements.saveExamBtn.addEventListener('click', handleSaveExam);
         }
         
-        const tagInput = document.getElementById('tag-input');
-        if (tagInput) {
-            tagInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addTag();
-                }
+        if (elements.cancelExamBtn) {
+            elements.cancelExamBtn.addEventListener('click', resetExamForm);
+        }
+        
+        if (elements.problemSearchInput) {
+            elements.problemSearchInput.addEventListener('input', filterProblems);
+        }
+        
+        if (elements.problemFilterDifficulty) {
+            elements.problemFilterDifficulty.addEventListener('change', filterProblems);
+        }
+        
+        if (elements.problemFilterCategory) {
+            elements.problemFilterCategory.addEventListener('change', filterProblems);
+        }
+        
+        // Upload Problem Events
+        if (elements.problemFileInput) {
+            elements.problemFileInput.addEventListener('change', handleFileSelect);
+        }
+        
+        if (elements.fileDropArea) {
+            elements.fileDropArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                elements.fileDropArea.style.borderColor = '#7F56D9';
             });
-        }
-        
-        const problemFile = document.getElementById('problem-file');
-        if (problemFile) {
-            problemFile.addEventListener('change', handleFileSelect);
-        }
-        
-        const resetProblemBtn = document.getElementById('reset-problem-btn');
-        if (resetProblemBtn) {
-            resetProblemBtn.addEventListener('click', resetProblemForm);
-        }
-        
-        const uploadProblemBtn = document.getElementById('upload-problem-btn');
-        if (uploadProblemBtn) {
-            uploadProblemBtn.addEventListener('click', handleProblemUpload);
-        }
-        
-        // Exam maker form
-        const filterDifficulty = document.getElementById('filter-difficulty');
-        if (filterDifficulty) {
-            filterDifficulty.addEventListener('change', filterProblems);
-        }
-        
-        const filterTag = document.getElementById('filter-tag');
-        if (filterTag) {
-            filterTag.addEventListener('change', filterProblems);
-        }
-        
-        const filterSearch = document.getElementById('filter-search');
-        if (filterSearch) {
-            filterSearch.addEventListener('input', filterProblems);
-        }
-        
-        const resetExamBtn = document.getElementById('reset-exam-btn');
-        if (resetExamBtn) {
-            resetExamBtn.addEventListener('click', resetExamForm);
-        }
-        
-        const createExamBtn = document.getElementById('create-exam-btn');
-        if (createExamBtn) {
-            createExamBtn.addEventListener('click', handleExamCreation);
-        }
-        
-        // Exam overview buttons
-        const createNewExamBtn = document.getElementById('create-new-exam-btn');
-        if (createNewExamBtn) {
-            createNewExamBtn.addEventListener('click', () => switchMainTab('maker'));
-        }
-        
-        // Modals
-        const problemPreviewModal = document.getElementById('problem-preview-modal');
-        const previewCloseBtn = document.getElementById('preview-close-btn');
-        
-        if (previewCloseBtn) {
-            previewCloseBtn.addEventListener('click', () => {
-                if (problemPreviewModal) {
-                    problemPreviewModal.classList.remove('show');
-                }
-            });
-        }
-        
-        if (problemPreviewModal) {
-            problemPreviewModal.addEventListener('click', (e) => {
-                if (e.target === problemPreviewModal) {
-                    problemPreviewModal.classList.remove('show');
-                }
-            });
-        }
-        
-        const previewModeToggle = document.getElementById('preview-mode-toggle');
-        if (previewModeToggle) {
-            previewModeToggle.addEventListener('change', togglePreviewMode);
-        }
-        
-        const examDetailsModal = document.getElementById('exam-details-modal');
-        const examDetailsCloseBtn = document.getElementById('exam-details-close-btn');
-        
-        if (examDetailsCloseBtn) {
-            examDetailsCloseBtn.addEventListener('click', () => {
-                if (examDetailsModal) {
-                    examDetailsModal.classList.remove('show');
-                }
-            });
-        }
-        
-        if (examDetailsModal) {
-            examDetailsModal.addEventListener('click', (e) => {
-                if (e.target === examDetailsModal) {
-                    examDetailsModal.classList.remove('show');
-                }
-            });
-        }
-    }
-    
-    // Switch between main tabs
-    function switchMainTab(tabId) {
-        console.log(`Switching to tab: ${tabId}`);
-        
-        // Update tab buttons
-        document.querySelectorAll('.main_tab_button').forEach(button => {
-            if (button.getAttribute('data-tab') === tabId) {
-                button.classList.add('active');
-            } else {
-                button.classList.remove('active');
-            }
-        });
-        
-        // Update tab contents
-        document.querySelectorAll('.main_tab_content').forEach(content => {
-            if (content.id === `${tabId}-tab`) {
-                content.classList.add('active');
-            } else {
-                content.classList.remove('active');
-            }
-        });
-        
-        // Special actions for specific tabs
-        if (tabId === 'maker') {
-            populateAvailableProblems();
-            populateLectureDropdown();
-        } else if (tabId === 'overview') {
-            renderExamsTable();
-        }
-    }
-    
-    // Set default values for form fields
-    function setDefaultValues() {
-        console.log("Setting default values");
-        
-        // Set today's date for exam date
-        const today = new Date();
-        const formattedDate = window.appUtils.formatDate(today);
-        
-        const examDate = document.getElementById('exam-date');
-        if (examDate) {
-            examDate.value = formattedDate;
-        }
-        
-        // Set default values for exam duration and points
-        const examDuration = document.getElementById('exam-duration');
-        if (examDuration) {
-            examDuration.value = "120";
-        }
-        
-        const examPoints = document.getElementById('exam-points');
-        if (examPoints) {
-            examPoints.value = "100";
-        }
-    }
-    
-    // Handle tag addition
-    function addTag() {
-        const tagInput = document.getElementById('tag-input');
-        const tagsContainer = document.getElementById('tags-container');
-        
-        if (!tagInput || !tagsContainer) return;
-        
-        const tagValue = tagInput.value.trim();
-        
-        if (tagValue && !currentTags.includes(tagValue)) {
-            currentTags.push(tagValue);
-            renderTags();
-            tagInput.value = '';
-        }
-    }
-    
-    // Handle tag removal
-    function removeTag(tag) {
-        currentTags = currentTags.filter(t => t !== tag);
-        renderTags();
-    }
-    
-    // Render tags in the container
-    function renderTags() {
-        const tagsContainer = document.getElementById('tags-container');
-        if (!tagsContainer) return;
-        
-        tagsContainer.innerHTML = '';
-        
-        currentTags.forEach(tag => {
-            const tagElement = document.createElement('div');
-            tagElement.className = 'tag';
-            tagElement.innerHTML = `
-                ${tag}
-                <span class="tag-remove">✕</span>
-            `;
             
-            tagElement.querySelector('.tag-remove').addEventListener('click', () => removeTag(tag));
-            tagsContainer.appendChild(tagElement);
+            elements.fileDropArea.addEventListener('dragleave', () => {
+                elements.fileDropArea.style.borderColor = '#22262F';
+            });
+            
+            elements.fileDropArea.addEventListener('drop', handleFileDrop);
+        }
+        
+        if (elements.removeFileBtn) {
+            elements.removeFileBtn.addEventListener('click', removeSelectedFile);
+        }
+        
+        if (elements.downloadTemplateBtn) {
+            elements.downloadTemplateBtn.addEventListener('click', downloadProblemTemplate);
+        }
+        
+        if (elements.saveProblemBtn) {
+            elements.saveProblemBtn.addEventListener('click', handleSaveProblem);
+        }
+        
+        if (elements.cancelProblemBtn) {
+            elements.cancelProblemBtn.addEventListener('click', resetProblemForm);
+        }
+        
+        // Overview Tab Events
+        if (elements.createExamBtn) {
+            elements.createExamBtn.addEventListener('click', navigateToExamMaker);
+        }
+        
+        if (elements.prevPageBtn) {
+            elements.prevPageBtn.addEventListener('click', goToPreviousPage);
+        }
+        
+        if (elements.nextPageBtn) {
+            elements.nextPageBtn.addEventListener('click', goToNextPage);
+        }
+        
+        // Set up click event for the dynamically created problem checkboxes
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('problem-checkbox')) {
+                handleProblemSelection(e.target);
+            }
+        });
+        
+        // Set up click event for the dynamically created preview buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-preview')) {
+                const problemId = e.target.closest('.problem-item').dataset.id;
+                showProblemPreview(problemId);
+            }
+        });
+        
+        // Set up click event for the dynamically created exam actions
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-edit-exam')) {
+                const examId = e.target.closest('tr').dataset.id;
+                editExam(examId);
+            } else if (e.target.classList.contains('btn-view-exam')) {
+                const examId = e.target.closest('tr').dataset.id;
+                viewExam(examId);
+            }
         });
     }
     
-    // Handle file selection for problem upload
-    function handleFileSelect(event) {
-        const fileNameDisplay = document.getElementById('file-name-display');
-        if (!fileNameDisplay) return;
-        
-        const file = event.target.files[0];
-        if (file) {
-            fileNameDisplay.textContent = file.name;
-        } else {
-            fileNameDisplay.textContent = 'No file chosen';
-        }
-    }
-    
-    // Reset problem upload form
-    function resetProblemForm() {
-        console.log("Resetting problem form");
-        
-        const problemTitle = document.getElementById('problem-title');
-        const problemDifficulty = document.getElementById('problem-difficulty');
-        const problemDescription = document.getElementById('problem-description');
-        const problemFile = document.getElementById('problem-file');
-        const fileNameDisplay = document.getElementById('file-name-display');
-        
-        if (problemTitle) problemTitle.value = '';
-        if (problemDifficulty) problemDifficulty.value = 'easy';
-        if (problemDescription) problemDescription.value = '';
-        if (problemFile) problemFile.value = '';
-        if (fileNameDisplay) fileNameDisplay.textContent = 'No file chosen';
-        
-        currentTags = [];
-        renderTags();
-    }
-    
-    // Handle problem upload
-    async function handleProblemUpload() {
-        console.log("Handling problem upload");
-        
-        // Validate form
-        if (!validateProblemForm()) {
-            return;
-        }
-        
-        const problemTitle = document.getElementById('problem-title');
-        const problemDifficulty = document.getElementById('problem-difficulty');
-        const problemDescription = document.getElementById('problem-description');
-        const problemFile = document.getElementById('problem-file');
-        const fileNameDisplay = document.getElementById('file-name-display');
-        
-        // Ensure required elements exist
-        if (!problemTitle || !problemDifficulty || !problemDescription || !problemFile || !fileNameDisplay) {
-            console.error('Required form elements not found');
-            return;
-        }
-        
+    // Load all necessary data
+    async function loadData() {
         try {
             await window.appUtils.showLoadingIndicator();
             
-            // Prepare problem data
-            const problemData = {
-                problem_id: generateProblemId(),
-                title: problemTitle.value.trim(),
-                difficulty: problemDifficulty.value,
-                description: problemDescription.value.trim(),
-                tags: currentTags.join(','),
-                file: fileNameDisplay.textContent,
-                upload_date: new Date().toISOString()
-            };
+            // Load problems
+            await loadProblems();
             
-            console.log('Problem data to submit:', problemData);
+            // Load exams
+            await loadExams();
             
-            // Handle file upload
-            if (problemFile.files.length > 0) {
-                const file = problemFile.files[0];
-                console.log('Uploading file:', file.name);
-                
-                // Create FormData for file upload
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                // In a real implementation, you would upload the file to Google Drive
-                /*
-                try {
-                    const response = await fetch('/upload-file', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('File upload failed');
-                    }
-                    
-                    const result = await response.json();
-                    console.log('File uploaded to:', result.fileUrl);
-                    
-                    // Update problem data with file URL
-                    problemData.file_url = result.fileUrl;
-                } catch (error) {
-                    console.error('Error uploading file:', error);
-                    throw new Error('File upload failed');
-                }
-                */
-                
-                // For now, simulate a delay
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Simulate successful upload
-                console.log('File uploaded successfully');
-            }
-            
-            // In a real implementation, you would send the problem data to the server
-            /*
-            const response = await fetch('/add-problem', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(problemData)
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to add problem');
-            }
-            
-            const result = await response.json();
-            console.log('Server response:', result);
-            */
-            
-            // For now, add to local data
-            problems.push(problemData);
-            
-            // Update available tags
-            updateAvailableTags();
-            
-            // Update UI
-            renderProblemsTable();
-            updateCounters();
-            
-            // Reset form
-            resetProblemForm();
-            
-            // Show success message
-            alert('Problem uploaded successfully!');
+            // Load classes for the dropdown
+            await loadClasses();
             
         } catch (error) {
-            console.error('Error uploading problem:', error);
-            alert('Failed to upload problem. Please try again.');
+            console.error("Error loading data:", error);
+            alert("Failed to load data. Please try again.");
         } finally {
             await window.appUtils.hideLoadingIndicator();
         }
     }
     
-    // Validate problem upload form
-    function validateProblemForm() {
-        const problemTitle = document.getElementById('problem-title');
-        const problemDescription = document.getElementById('problem-description');
-        const problemFile = document.getElementById('problem-file');
-        
-        if (!problemTitle || !problemTitle.value.trim()) {
-            alert('Please enter a problem title');
-            return false;
-        }
-        
-        if (!problemDescription || !problemDescription.value.trim()) {
-            alert('Please enter a problem description');
-            return false;
-        }
-        
-        if (!problemFile || !problemFile.files.length) {
-            alert('Please select a file to upload');
-            return false;
-        }
-        
-        return true;
-    }
-    
-    // Generate unique problem ID
-    function generateProblemId() {
-        return Math.floor(1000000 + Math.random() * 9000000);
-    }
-    
-    // Load problems from the server
+    // Load problems from server
     async function loadProblems() {
-        console.log("Loading problems");
-        
         try {
-            // In a real implementation, this would fetch from the server:
-            // const data = await window.appUtils.loadList('problem');
+            // Fetch problems from server
+            const problems = await window.appUtils.loadList('problem');
             
-            // For now, use mock data
-            problems = await getMockProblems();
+            // Format problem data
+            allProblems = problems.map(problem => ({
+                id: problem[0],
+                title: problem[1],
+                difficulty: problem[2] || 'medium',
+                category: 'math', // Default category if not available
+                statement: '',
+                solution: ''
+            }));
             
-            // Update available tags
-            updateAvailableTags();
+            // Initialize filtered problems to all problems
+            filteredProblems = [...allProblems];
             
-            // Render the problems table
-            renderProblemsTable();
-            
-            return problems;
         } catch (error) {
-            console.error('Error loading problems:', error);
+            console.error("Error loading problems:", error);
             throw error;
         }
     }
     
-    // Render problems table
-    function renderProblemsTable() {
-        console.log("Rendering problems table");
-        
-        const problemsTableBody = document.getElementById('problems-table-body');
-        if (!problemsTableBody) return;
-        
-        problemsTableBody.innerHTML = '';
-        
-        problems.forEach(problem => {
-            const tr = document.createElement('tr');
+    // Load exams from server
+    async function loadExams() {
+        try {
+            // Fetch exams from server
+            const exams = await window.appUtils.loadList('exam');
             
-            // Format date for display
-            const uploadDate = new Date(problem.upload_date);
-            const formattedDate = uploadDate.toLocaleDateString();
+            // Load exam problems for each exam
+            const examProblems = await window.appUtils.loadList('exam_problem');
             
-            // Format tags for display
-            const tags = problem.tags.split(',').filter(Boolean);
-            const tagsHtml = tags.map(tag => `<span class="tag">${tag}</span>`).join(' ');
-            
-            tr.innerHTML = `
-                <td>${problem.problem_id}</td>
-                <td>${problem.title}</td>
-                <td>${problem.difficulty}</td>
-                <td>${tagsHtml}</td>
-                <td>${formattedDate}</td>
-                <td>
-                    <button class="problem-preview" data-id="${problem.problem_id}">View</button>
-                </td>
-            `;
-            
-            // Add event listener for preview button
-            tr.querySelector('.problem-preview').addEventListener('click', () => {
-                showProblemPreview(problem);
+            // Format exam data
+            allExams = exams.map(exam => {
+                // Count problems for this exam
+                const problemCount = examProblems.filter(ep => ep[1] === exam[0]).length;
+                
+                return {
+                    id: exam[0],
+                    title: exam[1] || 'Untitled Exam',
+                    class_id: '',
+                    class_name: 'Loading...',
+                    date: exam[2] || '',
+                    problemCount,
+                    status: 'active' // Default status
+                };
             });
             
-            problemsTableBody.appendChild(tr);
-        });
-        
-        // Initialize table pagination
-        window.appUtils.setTable(ROWS_PER_PAGE);
+            // Load class names for each exam
+            await loadClassNames();
+            
+        } catch (error) {
+            console.error("Error loading exams:", error);
+            throw error;
+        }
     }
     
-    // Update available tags from all problems
-    function updateAvailableTags() {
-        const tagSet = new Set();
-        
-        problems.forEach(problem => {
-            const tags = problem.tags.split(',').filter(Boolean);
-            tags.forEach(tag => tagSet.add(tag));
-        });
-        
-        availableTags = Array.from(tagSet);
-        
-        // Update filter dropdown
-        const filterTag = document.getElementById('filter-tag');
-        if (filterTag) {
-            // Keep the "All Tags" option
-            filterTag.innerHTML = '<option value="all">All Tags</option>';
+    // Load class names for exams
+    async function loadClassNames() {
+        try {
+            // Fetch classes from server
+            const classes = await window.appUtils.loadList('class');
             
-            // Add each tag as an option
-            availableTags.forEach(tag => {
-                const option = document.createElement('option');
-                option.value = tag;
-                option.textContent = tag;
-                filterTag.appendChild(option);
+            // Update exam objects with class names
+            allExams = allExams.map(exam => {
+                const classObj = classes.find(c => c[0] === exam.class_id);
+                return {
+                    ...exam,
+                    class_name: classObj ? `${classObj[1]} - ${classObj[4]}기` : 'Unknown Class'
+                };
             });
-        }
-    }
-    
-    // Show problem preview modal
-    function showProblemPreview(problem) {
-        console.log(`Showing preview for problem: ${problem.problem_id}`);
-        
-        const problemPreviewModal = document.getElementById('problem-preview-modal');
-        const problemPreviewContainer = document.getElementById('problem-preview-container');
-        
-        if (!problemPreviewModal || !problemPreviewContainer) return;
-        
-        problemPreviewContainer.innerHTML = `
-            <h3>${problem.title}</h3>
-            <p class="preview-problem">${problem.description}</p>
             
-            <div class="preview-file-info">
-                <p>Attached file: ${problem.file}</p>
-                <p>This would display the actual file content (PDF, image, etc.) in a real implementation.</p>
-            </div>
+        } catch (error) {
+            console.error("Error loading class names:", error);
+        }
+    }
+    
+    // Load classes for dropdown
+    async function loadClasses() {
+        try {
+            // Fetch active classes from server
+            const classes = await window.appUtils.loadList('class');
+            const activeClasses = classes.filter(c => c[6] === 'active');
             
-            <div class="preview-metadata">
-                <p><strong>Difficulty:</strong> ${problem.difficulty}</p>
-                <p><strong>Tags:</strong> ${problem.tags}</p>
-                <p><strong>Uploaded:</strong> ${new Date(problem.upload_date).toLocaleDateString()}</p>
-            </div>
-        `;
-        
-        // Show the modal
-        problemPreviewModal.classList.add('show');
-    }
-    
-    // Toggle preview mode (dark/light)
-    function togglePreviewMode() {
-        const previewModeToggle = document.getElementById('preview-mode-toggle');
-        const problemPreviewContainer = document.getElementById('problem-preview-container');
-        
-        if (!previewModeToggle || !problemPreviewContainer) return;
-        
-        if (previewModeToggle.checked) {
-            problemPreviewContainer.classList.add('preview-dark');
-        } else {
-            problemPreviewContainer.classList.remove('preview-dark');
+            // Populate class dropdown
+            if (elements.examClass) {
+                elements.examClass.innerHTML = '<option value="">Select a class</option>';
+                
+                activeClasses.forEach(classData => {
+                    const option = document.createElement('option');
+                    option.value = classData[0];
+                    option.textContent = `${classData[1]} - ${classData[4]}기`;
+                    elements.examClass.appendChild(option);
+                });
+            }
+            
+        } catch (error) {
+            console.error("Error loading classes:", error);
         }
     }
     
-    // Populate available problems in the exam maker tab
-    function populateAvailableProblems() {
-        console.log("Populating available problems");
-        
-        const availableProblems = document.getElementById('available-problems');
-        if (!availableProblems) return;
-        
-        availableProblems.innerHTML = '';
-        
-        if (problems.length === 0) {
-            availableProblems.innerHTML = '<div class="no-problems-message">No problems available. Please upload problems first.</div>';
-            return;
+    // Update overview counts
+    function updateCounts() {
+        if (elements.totalExamsCount) {
+            elements.totalExamsCount.textContent = allExams.length;
         }
         
-        // Apply filters
-        const filteredProblems = filterProblemsForDisplay();
+        if (elements.totalProblemsCount) {
+            elements.totalProblemsCount.textContent = allProblems.length;
+        }
+        
+        if (elements.activeExamsCount) {
+            const activeCount = allExams.filter(exam => exam.status === 'active').length;
+            elements.activeExamsCount.textContent = activeCount;
+        }
+    }
+    
+    // Render problems list
+    function renderProblemsList() {
+        if (!elements.problemsList) return;
+        
+        elements.problemsList.innerHTML = '';
         
         if (filteredProblems.length === 0) {
-            availableProblems.innerHTML = '<div class="no-problems-message">No problems match your filter criteria.</div>';
+            elements.problemsList.innerHTML = '<div class="empty-state">No problems found. Try adjusting your filters.</div>';
             return;
         }
         
         filteredProblems.forEach(problem => {
-            const isSelected = selectedProblems.some(p => p.problem_id === problem.problem_id);
+            const isSelected = selectedProblems.find(p => p.id === problem.id);
             
-            const problemElement = document.createElement('div');
-            problemElement.className = `problem-item${isSelected ? ' selected' : ''}`;
-            problemElement.dataset.id = problem.problem_id;
+            const problemItem = document.createElement('div');
+            problemItem.className = 'problem-item';
+            problemItem.dataset.id = problem.id;
             
-            problemElement.innerHTML = `
+            problemItem.innerHTML = `
                 <div class="problem-info">
-                    <div class="problem-title">${problem.title}</div>
-                    <div class="problem-details">
-                        Difficulty: ${problem.difficulty} | Tags: ${problem.tags}
+                    <input type="checkbox" class="problem-checkbox" ${isSelected ? 'checked' : ''}>
+                    <div>
+                        <div class="problem-name">${problem.title}</div>
+                        <div class="problem-id">#${problem.id}</div>
                     </div>
                 </div>
-                <button class="problem-preview" data-id="${problem.problem_id}">Preview</button>
+                <div class="problem-actions">
+                    <span class="problem-difficulty difficulty-${problem.difficulty}">${capitalizeFirstLetter(problem.difficulty)}</span>
+                    <button class="btn btn-secondary btn-sm btn-preview">Preview</button>
+                </div>
             `;
             
-            // Add event listener for selecting the problem
-            problemElement.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('problem-preview')) {
-                    toggleProblemSelection(problem);
-                }
-            });
-            
-            // Add event listener for preview button
-            problemElement.querySelector('.problem-preview').addEventListener('click', (e) => {
-                e.stopPropagation();
-                showProblemPreview(problem);
-            });
-            
-            availableProblems.appendChild(problemElement);
+            elements.problemsList.appendChild(problemItem);
         });
     }
     
-    // Filter problems based on user selection
+    // Render exams table
+    function renderExamsTable() {
+        if (!elements.examsTableBody) return;
+        
+        elements.examsTableBody.innerHTML = '';
+        
+        if (allExams.length === 0) {
+            elements.examsTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No exams found.</td></tr>';
+            return;
+        }
+        
+        const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
+        const endIndex = Math.min(startIndex + ROWS_PER_PAGE, allExams.length);
+        const examsToShow = allExams.slice(startIndex, endIndex);
+        
+        examsToShow.forEach(exam => {
+            const tr = document.createElement('tr');
+            tr.dataset.id = exam.id;
+            
+            tr.innerHTML = `
+                <td>${exam.id}</td>
+                <td>${exam.title}</td>
+                <td>${exam.class_name}</td>
+                <td>${exam.date ? formatDateForDisplay(exam.date) : 'Not set'}</td>
+                <td>${exam.problemCount}</td>
+                <td><span class="status-badge badge-${exam.status}">${capitalizeFirstLetter(exam.status)}</span></td>
+                <td>
+                    <button class="btn btn-secondary btn-sm btn-edit-exam">Edit</button>
+                    <button class="btn btn-secondary btn-sm btn-view-exam">View</button>
+                </td>
+            `;
+            
+            elements.examsTableBody.appendChild(tr);
+        });
+        
+        // Update pagination info
+        if (elements.startItem) {
+            elements.startItem.textContent = allExams.length > 0 ? startIndex + 1 : 0;
+        }
+        
+        if (elements.endItem) {
+            elements.endItem.textContent = endIndex;
+        }
+        
+        if (elements.totalItems) {
+            elements.totalItems.textContent = allExams.length;
+        }
+        
+        // Update pagination buttons
+        updatePaginationButtons();
+    }
+    
+    // Update pagination buttons state
+    function updatePaginationButtons() {
+        const totalPages = Math.ceil(allExams.length / ROWS_PER_PAGE);
+        
+        if (elements.prevPageBtn) {
+            elements.prevPageBtn.disabled = currentPage === 1;
+        }
+        
+        if (elements.nextPageBtn) {
+            elements.nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+        }
+        
+        // Update pagination page buttons
+        const paginationContainer = document.querySelector('.pagination');
+        if (paginationContainer) {
+            // Keep prev and next buttons
+            const prevBtn = elements.prevPageBtn;
+            const nextBtn = elements.nextPageBtn;
+            
+            // Clear existing page buttons
+            paginationContainer.innerHTML = '';
+            
+            // Add prev button back
+            if (prevBtn) {
+                paginationContainer.appendChild(prevBtn);
+            }
+            
+            // Add page buttons
+            for (let i = 1; i <= totalPages; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+                pageBtn.textContent = i;
+                pageBtn.addEventListener('click', () => {
+                    currentPage = i;
+                    renderExamsTable();
+                });
+                
+                paginationContainer.appendChild(pageBtn);
+            }
+            
+            // Add next button back
+            if (nextBtn) {
+                paginationContainer.appendChild(nextBtn);
+            }
+        }
+    }
+    
+    // Filter problems based on search input and filters
     function filterProblems() {
-        populateAvailableProblems();
-    }
-    
-    // Apply filters and return filtered problems
-    function filterProblemsForDisplay() {
-        const filterDifficulty = document.getElementById('filter-difficulty');
-        const filterTag = document.getElementById('filter-tag');
-        const filterSearch = document.getElementById('filter-search');
+        if (!elements.problemSearchInput) return;
         
-        const difficultyFilter = filterDifficulty ? filterDifficulty.value : 'all';
-        const tagFilter = filterTag ? filterTag.value : 'all';
-        const searchFilter = filterSearch ? filterSearch.value.toLowerCase() : '';
+        const searchTerm = elements.problemSearchInput.value.toLowerCase();
+        const difficultyFilter = elements.problemFilterDifficulty.value;
+        const categoryFilter = elements.problemFilterCategory.value;
         
-        return problems.filter(problem => {
-            // Difficulty filter
-            if (difficultyFilter !== 'all' && problem.difficulty !== difficultyFilter) {
-                return false;
-            }
+        filteredProblems = allProblems.filter(problem => {
+            const matchesSearch = problem.title.toLowerCase().includes(searchTerm);
+            const matchesDifficulty = !difficultyFilter || problem.difficulty === difficultyFilter;
+            const matchesCategory = !categoryFilter || problem.category === categoryFilter;
             
-            // Tag filter
-            if (tagFilter !== 'all' && !problem.tags.includes(tagFilter)) {
-                return false;
-            }
-            
-            // Search filter
-            if (searchFilter && !problem.title.toLowerCase().includes(searchFilter)) {
-                return false;
-            }
-            
-            return true;
+            return matchesSearch && matchesDifficulty && matchesCategory;
         });
+        
+        renderProblemsList();
     }
     
-    // Toggle problem selection for exam
-    function toggleProblemSelection(problem) {
-        console.log(`Toggling selection for problem: ${problem.problem_id}`);
+    // Handle problem selection
+    function handleProblemSelection(checkbox) {
+        const problemItem = checkbox.closest('.problem-item');
+        const problemId = problemItem.dataset.id;
         
-        const index = selectedProblems.findIndex(p => p.problem_id === problem.problem_id);
-        
-        if (index === -1) {
-            // Add to selected problems
-            selectedProblems.push(problem);
+        if (checkbox.checked) {
+            // Add to selected if not already included
+            if (!selectedProblems.find(p => p.id === problemId)) {
+                const problem = allProblems.find(p => p.id === problemId);
+                if (problem) {
+                    selectedProblems.push(problem);
+                }
+            }
         } else {
-            // Remove from selected problems
-            selectedProblems.splice(index, 1);
+            // Remove from selected
+            selectedProblems = selectedProblems.filter(p => p.id !== problemId);
         }
-        
-        // Update UI
-        updateSelectedProblemsList();
-        populateAvailableProblems();
     }
     
-    // Update the selected problems list
-    function updateSelectedProblemsList() {
-        const selectedProblemsList = document.getElementById('selected-problems-list');
-        const selectedProblemsCount = document.getElementById('selected-problems-count');
+    // Show problem preview
+    function showProblemPreview(problemId) {
+        const problem = allProblems.find(p => p.id === problemId);
         
-        if (!selectedProblemsList || !selectedProblemsCount) return;
-        
-        selectedProblemsList.innerHTML = '';
-        selectedProblemsCount.textContent = selectedProblems.length;
-        
-        if (selectedProblems.length === 0) {
-            selectedProblemsList.innerHTML = '<div class="no-problems-message">No problems selected yet</div>';
+        if (!problem) {
+            alert('Problem not found');
             return;
         }
         
-        selectedProblems.forEach(problem => {
-            const problemElement = document.createElement('div');
-            problemElement.className = 'selected-problem-item';
-            
-            problemElement.innerHTML = `
-                <div class="problem-info">
-                    <div class="problem-title">${problem.title}</div>
-                    <div class="problem-details">
-                        Difficulty: ${problem.difficulty}
-                    </div>
+        // Create a simple modal to preview the problem
+        const previewModal = document.createElement('div');
+        previewModal.className = 'modal-overlay show';
+        
+        previewModal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <h2>${problem.title}</h2>
+                <div style="margin-bottom: 16px;">
+                    <span class="problem-difficulty difficulty-${problem.difficulty}">${capitalizeFirstLetter(problem.difficulty)}</span>
                 </div>
-                <button class="problem-remove" data-id="${problem.problem_id}">Remove</button>
-            `;
-            
-            // Add event listener for remove button
-            problemElement.querySelector('.problem-remove').addEventListener('click', () => {
-                toggleProblemSelection(problem);
-            });
-            
-            selectedProblemsList.appendChild(problemElement);
+                <div style="margin-bottom: 16px;">
+                    <h3>Problem Statement</h3>
+                    <p>${problem.statement || 'No statement available'}</p>
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <h3>Solution</h3>
+                    <p>${problem.solution || 'No solution available'}</p>
+                </div>
+                <div style="display: flex; justify-content: center;">
+                    <button class="btn btn-primary close-preview-btn">Close</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(previewModal);
+        
+        // Add close button event
+        const closeBtn = previewModal.querySelector('.close-preview-btn');
+        closeBtn.addEventListener('click', () => {
+            document.body.removeChild(previewModal);
+        });
+        
+        // Close on overlay click
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) {
+                document.body.removeChild(previewModal);
+            }
         });
     }
     
-    // Load lectures from the server
-    async function loadLectures() {
-        console.log("Loading lectures");
-        
-        try {
-            // In a real implementation, this would fetch from the server:
-            // const data = await window.appUtils.loadList('lecture');
-            
-            // For now, use mock data
-            lectures = await getMockLectures();
-            return lectures;
-        } catch (error) {
-            console.error('Error loading lectures:', error);
-            throw error;
+    // Handle file selection
+    function handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+            displayFileInfo(file);
         }
     }
     
-    // Populate lecture dropdown in exam maker
-    function populateLectureDropdown() {
-        console.log("Populating lecture dropdown");
+    // Handle file drop
+    function handleFileDrop(e) {
+        e.preventDefault();
+        elements.fileDropArea.style.borderColor = '#22262F';
         
-        const assignLecture = document.getElementById('assign-lecture');
-        if (!assignLecture) return;
-        
-        assignLecture.innerHTML = '<option value="">Select a lecture...</option>';
-        
-        lectures.forEach(lecture => {
-            const option = document.createElement('option');
-            option.value = lecture.lecture_id;
-            
-            const formattedDate = new Date(lecture.lecture_date).toLocaleDateString();
-            option.textContent = `${formattedDate} - ${lecture.lecture_topic} (Class: ${lecture.class_id})`;
-            
-            assignLecture.appendChild(option);
-        });
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            elements.problemFileInput.files = e.dataTransfer.files;
+            displayFileInfo(file);
+        }
     }
     
-    // Reset exam maker form
-    function resetExamForm() {
-        console.log("Resetting exam form");
+    // Display file information
+    function displayFileInfo(file) {
+        selectedFile = file;
         
-        const examTitle = document.getElementById('exam-title');
-        const examDate = document.getElementById('exam-date');
-        const examDuration = document.getElementById('exam-duration');
-        const examPoints = document.getElementById('exam-points');
-        const assignLecture = document.getElementById('assign-lecture');
-        const examInstructions = document.getElementById('exam-instructions');
+        // Show file preview
+        if (elements.filePreview) {
+            elements.filePreview.style.display = 'block';
+        }
         
-        if (examTitle) examTitle.value = '';
-        if (examDate) examDate.value = window.appUtils.formatDate(new Date());
-        if (examDuration) examDuration.value = '120';
-        if (examPoints) examPoints.value = '100';
-        if (assignLecture) assignLecture.value = '';
-        if (examInstructions) examInstructions.value = '';
+        if (elements.fileName) {
+            elements.fileName.textContent = file.name;
+        }
         
-        // Clear selected problems
-        selectedProblems = [];
-        updateSelectedProblemsList();
-        populateAvailableProblems();
+        // Format file size
+        if (elements.fileSize) {
+            const fileSize = formatFileSize(file.size);
+            elements.fileSize.textContent = fileSize;
+        }
     }
     
-    // Handle exam creation
-    async function handleExamCreation() {
-        console.log("Handling exam creation");
+    // Remove selected file
+    function removeSelectedFile() {
+        selectedFile = null;
         
-        // Validate form
-        if (!validateExamForm()) {
+        if (elements.problemFileInput) {
+            elements.problemFileInput.value = '';
+        }
+        
+        if (elements.filePreview) {
+            elements.filePreview.style.display = 'none';
+        }
+    }
+    
+    // Format file size
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // Download problem template
+    function downloadProblemTemplate(e) {
+        e.preventDefault();
+        
+        // Create a simple template file
+        const templateContent = 'Problem Title: [Title Here]\nDifficulty: Easy/Medium/Hard\n\nProblem Statement:\n[Write problem statement here]\n\nSolution:\n[Write solution here]';
+        
+        // Create a blob and download it
+        const blob = new Blob([templateContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'problem_template.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    
+    // Handle save problem form
+    async function handleSaveProblem() {
+        // Basic validation
+        if (!elements.problemTitle.value.trim()) {
+            alert('Please enter a problem title');
             return;
         }
         
-        const examTitle = document.getElementById('exam-title');
-        const examDate = document.getElementById('exam-date');
-        const examDuration = document.getElementById('exam-duration');
-        const examPoints = document.getElementById('exam-points');
-        const assignLecture = document.getElementById('assign-lecture');
-        const examInstructions = document.getElementById('exam-instructions');
+        // Prepare problem data
+        let problemData = {
+            id: generateProblemId(),
+            title: elements.problemTitle.value.trim(),
+            difficulty: elements.problemDifficulty.value,
+            statement: elements.problemStatement.value.trim(),
+            solution: elements.problemSolution.value.trim()
+        };
         
         try {
             await window.appUtils.showLoadingIndicator();
             
-            // Prepare exam data
-            const examData = {
-                exam_id: generateExamId(),
-                title: examTitle.value.trim(),
-                date: examDate.value,
-                duration: parseInt(examDuration.value),
-                total_points: parseInt(examPoints.value),
-                lecture_id: assignLecture.value,
-                instructions: examInstructions.value.trim(),
-                problems: selectedProblems.map(p => p.problem_id).join(','),
-                status: new Date(examDate.value) > new Date() ? 'scheduled' : 'in-progress',
-                created_at: new Date().toISOString()
-            };
-            
-            console.log('Exam data to submit:', examData);
-            
-            // In a real implementation, you would send the exam data to the server
-            /*
-            const response = await fetch('/add-exam', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(examData)
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to add exam');
+            // Handle file upload if a file is selected
+            if (selectedFile) {
+                // In a real implementation, you would upload the file to the server
+                // and get a file URL or ID in response
+                console.log('Uploading file:', selectedFile.name);
+                
+                // Here we're just simulating a file upload
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Update problem data with file info
+                problemData.hasFile = true;
+                problemData.fileName = selectedFile.name;
             }
             
-            const result = await response.json();
-            console.log('Server response:', result);
-            */
+            // For development, log the data instead of submitting
+            console.log('Problem data to submit:', problemData);
             
-            // For now, add to local data
-            exams.push(examData);
+            // Simulate server delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Add to local problem list (would normally come from server response)
+            allProblems.push(problemData);
+            filteredProblems = [...allProblems];
             
             // Update UI
-            updateCounters();
+            updateCounts();
+            renderProblemsList();
             
             // Reset form
-            resetExamForm();
+            resetProblemForm();
             
-            // Show success message
-            alert('Exam created successfully!');
-            
-            // Switch to overview tab
-            switchMainTab('overview');
+            alert('Problem saved successfully!');
             
         } catch (error) {
-            console.error('Error creating exam:', error);
-            alert('Failed to create exam. Please try again.');
+            console.error('Error saving problem:', error);
+            alert('Failed to save problem. Please try again.');
         } finally {
             await window.appUtils.hideLoadingIndicator();
         }
     }
     
-    // Validate exam form
-    function validateExamForm() {
-        const examTitle = document.getElementById('exam-title');
-        const examDate = document.getElementById('exam-date');
-        const examDuration = document.getElementById('exam-duration');
-        const examPoints = document.getElementById('exam-points');
-        
-        if (!examTitle || !examTitle.value.trim()) {
+    // Reset problem form
+    function resetProblemForm() {
+        if (elements.problemTitle) elements.problemTitle.value = '';
+        if (elements.problemDifficulty) elements.problemDifficulty.value = 'easy';
+        if (elements.problemStatement) elements.problemStatement.value = '';
+        if (elements.problemSolution) elements.problemSolution.value = '';
+        removeSelectedFile();
+    }
+    
+    // Handle save exam form
+    async function handleSaveExam() {
+        // Basic validation
+        if (!elements.examTitle.value.trim()) {
             alert('Please enter an exam title');
-            return false;
+            return;
         }
         
-        if (!examDate || !examDate.value) {
-            alert('Please select an exam date');
-            return false;
-        }
-        
-        if (!examDuration || !examDuration.value || parseInt(examDuration.value) <= 0) {
-            alert('Please enter a valid duration');
-            return false;
-        }
-        
-        if (!examPoints || !examPoints.value || parseInt(examPoints.value) <= 0) {
-            alert('Please enter valid total points');
-            return false;
+        if (!elements.examClass.value) {
+            alert('Please select a class');
+            return;
         }
         
         if (selectedProblems.length === 0) {
-            alert('Please select at least one problem for the exam');
-            return false;
+            alert('Please select at least one problem');
+            return;
         }
         
-        return true;
-    }
-    
-    // Generate unique exam ID
-    function generateExamId() {
-        return Math.floor(1000000 + Math.random() * 9000000);
-    }
-    
-    // Load exams from the server
-    async function loadExams() {
-        console.log("Loading exams");
+        // Prepare exam data
+        const examId = generateExamId();
+        const examData = {
+            id: examId,
+            title: elements.examTitle.value.trim(),
+            class_id: elements.examClass.value,
+            date: elements.examDate.value,
+            description: elements.examDescription.value.trim(),
+            totalPoints: elements.examTotalPoints.value,
+            status: elements.examStatus.value,
+            problems: selectedProblems.map((problem, index) => ({
+                id: problem.id,
+                points: Math.floor(elements.examTotalPoints.value / selectedProblems.length) // Distribute points evenly
+            }))
+        };
         
         try {
-            // In a real implementation, this would fetch from the server:
-            // const data = await window.appUtils.loadList('exam');
+            await window.appUtils.showLoadingIndicator();
             
-            // For now, use mock data
-            exams = await getMockExams();
+            // For development, log the data instead of submitting
+            console.log('Exam data to submit:', examData);
             
-            // Render the exams table
-            renderExamsTable();
+            // Simulate server delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
-            return exams;
-        } catch (error) {
-            console.error('Error loading exams:', error);
-            throw error;
-        }
-    }
-    
-    // Render exams table
-    function renderExamsTable() {
-        console.log("Rendering exams table");
-        
-        const examsTableBody = document.getElementById('exams-table-body');
-        if (!examsTableBody) return;
-        
-        examsTableBody.innerHTML = '';
-        
-        exams.forEach(exam => {
-            const tr = document.createElement('tr');
+            // Add to local exam list (would normally come from server response)
+            const selectedClass = elements.examClass.options[elements.examClass.selectedIndex];
+            const className = selectedClass ? selectedClass.textContent : 'Unknown Class';
             
-            // Format date for display
-            const examDate = new Date(exam.date);
-            const formattedDate = examDate.toLocaleDateString();
-            
-            // Find lecture details
-            const lecture = lectures.find(l => l.lecture_id == exam.lecture_id);
-            const lectureName = lecture ? lecture.lecture_topic : 'Not assigned';
-            
-            // Count problems
-            const problemCount = exam.problems ? exam.problems.split(',').length : 0;
-            
-            //// Determine status badge
-            let statusBadge = '';
-            if (exam.status === 'scheduled') {
-                statusBadge = `<span class="status-badge badge-scheduled">Scheduled</span>`;
-            } else if (exam.status === 'in-progress') {
-                statusBadge = `<span class="status-badge badge-in-progress">In Progress</span>`;
-            } else if (exam.status === 'completed') {
-                statusBadge = `<span class="status-badge badge-completed">Completed</span>`;
-            }
-            
-            tr.innerHTML = `
-                <td>${exam.exam_id}</td>
-                <td>${exam.title}</td>
-                <td>${formattedDate}</td>
-                <td>${lectureName}</td>
-                <td>${exam.duration} min</td>
-                <td>${problemCount}</td>
-                <td>${statusBadge}</td>
-                <td>
-                    <button class="problem-preview" data-id="${exam.exam_id}">Details</button>
-                </td>
-            `;
-            
-            // Add event listener for details button
-            tr.querySelector('.problem-preview').addEventListener('click', () => {
-                showExamDetails(exam);
+            allExams.push({
+                id: examData.id,
+                title: examData.title,
+                class_id: examData.class_id,
+                class_name: className,
+                date: examData.date,
+                problemCount: selectedProblems.length,
+                status: examData.status
             });
             
-            examsTableBody.appendChild(tr);
-        });
-        
-        // Initialize table pagination
-        window.appUtils.setTable(ROWS_PER_PAGE);
-    }
-    
-    // Show exam details modal
-    function showExamDetails(exam) {
-        console.log(`Showing details for exam: ${exam.exam_id}`);
-        
-        const examDetailsModal = document.getElementById('exam-details-modal');
-        const examDetailsContent = document.getElementById('exam-details-content');
-        
-        if (!examDetailsModal || !examDetailsContent) return;
-        
-        // Find lecture details
-        const lecture = lectures.find(l => l.lecture_id == exam.lecture_id);
-        const lectureName = lecture ? lecture.lecture_topic : 'Not assigned';
-        
-        // Get problem details
-        const problemIds = exam.problems ? exam.problems.split(',') : [];
-        const examProblems = problemIds.map(id => {
-            return problems.find(p => p.problem_id == id) || { title: 'Unknown Problem', difficulty: 'unknown' };
-        });
-        
-        // Format problem list
-        const problemListHtml = examProblems.map((problem, index) => `
-            <div class="preview-problem-item">
-                <strong>${index + 1}. ${problem.title}</strong> - ${problem.difficulty}
-            </div>
-        `).join('');
-        
-        examDetailsContent.innerHTML = `
-            <div class="exam-detail-info">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Exam ID</label>
-                        <div class="preview-field">${exam.exam_id}</div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Status</label>
-                        <div class="preview-field">${exam.status}</div>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Title</label>
-                        <div class="preview-field">${exam.title}</div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Date</label>
-                        <div class="preview-field">${new Date(exam.date).toLocaleDateString()}</div>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">Duration</label>
-                        <div class="preview-field">${exam.duration} minutes</div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Total Points</label>
-                        <div class="preview-field">${exam.total_points} points</div>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Assigned Lecture</label>
-                    <div class="preview-field">${lectureName}</div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Instructions</label>
-                    <div class="preview-field">${exam.instructions || 'No specific instructions'}</div>
-                </div>
-            </div>
+            // Update UI
+            updateCounts();
+            renderExamsTable();
             
-            <div class="divider"></div>
+            // Reset form
+            resetExamForm();
             
-            <div class="exam-problems">
-                <h3>Problems (${examProblems.length})</h3>
-                <div class="exam-problems-list">
-                    ${problemListHtml || '<div class="no-problems-message">No problems added to this exam</div>'}
-                </div>
-            </div>
-        `;
-        
-        // Show the modal
-        examDetailsModal.classList.add('show');
-    }
-    
-    // Update counters in the page header
-    function updateCounters() {
-        const totalExamsCount = document.getElementById('total-exams-count');
-        const totalProblemsCount = document.getElementById('total-problems-count');
-        const upcomingExamsCount = document.getElementById('upcoming-exams-count');
-        
-        if (totalExamsCount) {
-            totalExamsCount.textContent = exams.length;
-        }
-        
-        if (totalProblemsCount) {
-            totalProblemsCount.textContent = problems.length;
-        }
-        
-        if (upcomingExamsCount) {
-            const today = new Date();
-            const upcoming = exams.filter(exam => new Date(exam.date) > today).length;
-            upcomingExamsCount.textContent = upcoming;
+            alert('Exam saved successfully!');
+            
+            // Switch to overview tab
+            document.querySelector('.tab-button[data-tab="overview"]').click();
+            
+        } catch (error) {
+            console.error('Error saving exam:', error);
+            alert('Failed to save exam. Please try again.');
+        } finally {
+            await window.appUtils.hideLoadingIndicator();
         }
     }
-    
-    // Mock data functions
-    
-    // Get mock problems data
-    async function getMockProblems() {
-        console.log("Fetching mock problems data");
-        
-        // Simulate server delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        return [
-            {
-                problem_id: 1001001,
-                title: "Linear Equations",
-                difficulty: "easy",
-                description: "Solve the following linear equation: 3x + 5 = 14",
-                tags: "algebra,equations,linear",
-                file: "linear_equations.pdf",
-                upload_date: "2025-02-05T08:30:00Z"
-            },
-            {
-                problem_id: 1001002,
-                title: "Quadratic Formula",
-                difficulty: "medium",
-                description: "Solve the quadratic equation using the quadratic formula: 2x² - 7x + 3 = 0",
-                tags: "algebra,equations,quadratic",
-                file: "quadratic_formula.pdf",
-                upload_date: "2025-02-10T09:45:00Z"
-            },
-            {
-                problem_id: 1001003,
-                title: "Definite Integrals",
-                difficulty: "hard",
-                description: "Evaluate the definite integral: ∫(0,1) x² dx",
-                tags: "calculus,integration",
-                file: "definite_integrals.pdf",
-                upload_date: "2025-02-15T14:20:00Z"
-            },
-            {
-                problem_id: 1001004,
-                title: "Pythagorean Theorem",
-                difficulty: "easy",
-                description: "Find the length of the hypotenuse in a right triangle with legs measuring 3 and 4 units.",
-                tags: "geometry,trigonometry",
-                file: "pythagorean_theorem.pdf",
-                upload_date: "2025-02-20T11:15:00Z"
-            },
-            {
-                problem_id: 1001005,
-                title: "Matrix Multiplication",
-                difficulty: "medium",
-                description: "Multiply the following matrices: A = [[1, 2], [3, 4]] and B = [[5, 6], [7, 8]]",
-                tags: "linear algebra,matrices",
-                file: "matrix_multiplication.pdf",
-                upload_date: "2025-02-25T16:30:00Z"
-            }
-        ];
-    }
-    
-    // Get mock exams data
-    async function getMockExams() {
-        console.log("Fetching mock exams data");
-        
-        // Simulate server delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        return [
-            {
-                exam_id: 2001001,
-                title: "Midterm Algebra Exam",
-                date: "2025-04-15T09:00:00Z",
-                duration: 120,
-                total_points: 100,
-                lecture_id: 3001002,
-                instructions: "Answer all questions. Show your work for partial credit.",
-                problems: "1001001,1001002,1001004",
-                status: "scheduled",
-                created_at: "2025-03-01T10:30:00Z"
-            },
-            {
-                exam_id: 2001002,
-                title: "Advanced Mathematics Quiz",
-                date: "2025-04-05T14:00:00Z",
-                duration: 60,
-                total_points: 50,
-                lecture_id: 3001001,
-                instructions: "Choose 3 out of 5 problems to solve.",
-                problems: "1001003,1001005",
-                status: "scheduled",
-                created_at: "2025-03-05T11:45:00Z"
-            },
-            {
-                exam_id: 2001003,
-                title: "Geometry Test",
-                date: "2025-03-10T10:00:00Z",
-                duration: 90,
-                total_points: 75,
-                lecture_id: 3001003,
-                instructions: "No calculators allowed.",
-                problems: "1001001,1001004",
-                status: "completed",
-                created_at: "2025-02-20T09:30:00Z"
-            }
-        ];
-    }
-    
-    // Get mock lectures data
-    async function getMockLectures() {
-        console.log("Fetching mock lectures data");
-        
-        // Simulate server delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        return [
-            {
-                lecture_id: 3001001,
-                class_id: 4001001,
-                lecture_date: "2025-03-05",
-                lecture_time: "14:00",
-                lecture_topic: "Introduction to Calculus"
-            },
-            {
-                lecture_id: 3001002,
-                class_id: 4001001,
-                lecture_date: "2025-03-12",
-                lecture_time: "14:00",
-                lecture_topic: "Derivatives and Applications"
-            },
-            {
-                lecture_id: 3001003,
-                class_id: 4001002,
-                lecture_date: "2025-03-07",
-                lecture_time: "10:00",
-                lecture_topic: "Geometry Fundamentals"
-            },
-            {
-                lecture_id: 3001004,
-                class_id: 4001002,
-                lecture_date: "2025-03-14",
-                lecture_time: "10:00",
-                lecture_topic: "Triangles and Circles"
-            },
-            {
-                lecture_id: 3001005,
-                class_id: 4001003,
-                lecture_date: "2025-03-09",
-                lecture_time: "15:30",
-                lecture_topic: "Linear Algebra Basics"
-            }
-        ];
-    }
-    
-    // Initialize the page when the script loads
+
     initPage();
 })();
