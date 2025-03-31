@@ -139,7 +139,7 @@
         }
     }
     
-    // Load class data from the server
+    // Update the loadClassData function to modify how the table is populated
     async function loadClassData() {
         try {
             const data = await window.appUtils.loadList('class');
@@ -189,11 +189,17 @@
                     }
                 });
                 
-                // Add action button
-                const actionCell = document.createElement('td');
-                actionCell.innerHTML = createActionButtonSVG();
-                actionCell.addEventListener('click', () => handleClassDetailView(row[0])); // row[0] is class ID
-                tr.appendChild(actionCell);
+                // Add details button
+                const detailsCell = document.createElement('td');
+                detailsCell.innerHTML = createDetailsButtonSVG();
+                detailsCell.addEventListener('click', () => handleClassDetailView(row[0])); // row[0] is class ID
+                tr.appendChild(detailsCell);
+                
+                // Add manage button
+                const manageCell = document.createElement('td');
+                manageCell.innerHTML = createManageButtonSVG();
+                manageCell.addEventListener('click', () => navigateToClassManage(row[0])); // row[0] is class ID
+                tr.appendChild(manageCell);
                 
                 table.appendChild(tr);
             });
@@ -204,6 +210,33 @@
             console.error("Error loading class data:", error);
             throw error;
         }
+    }
+
+    // Create SVG functions to match the student tab
+    function createDetailsButtonSVG() {
+        return '<img src="/assets/details-view.svg" alt="Details" class="details-svg action-svg">';
+    }
+
+    function createManageButtonSVG() {
+        return '<img src="/assets/manage-view.svg" alt="Manage" class="manage-svg action-svg">';
+    }
+
+    // Add new function to handle class management navigation
+    function navigateToClassManage(classId) {
+        // You can implement this in different ways:
+        
+        // Option 1: Store the ID in local storage and redirect to a class management page
+        localStorage.setItem('currentClassId', classId);
+        // window.location.href = '/class-management.html';
+        
+        // Option 2: Use a hash-based navigation
+        // window.location.hash = `#class-manage=${classId}`;
+        
+        // Option 3: Open in a new tab
+        // window.open(`/class-management.html?id=${classId}`, '_blank');
+        
+        // For now, we'll just alert for demonstration
+        alert(`Navigating to management page for class ID: ${classId}`);
     }
     
     // Load students for enrollment
