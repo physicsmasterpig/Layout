@@ -60,6 +60,7 @@
     let allExams = [];
     let filteredProblems = [];
     let selectedFile = null;
+    let currentEditExamId = null; // Keep track of exam being edited
     
     // Initialize the page
     async function initPage() {
@@ -69,6 +70,11 @@
         updateCounts();
         renderProblemsList();
         renderExamsTable();
+        
+        // Initialize default values
+        if (elements.examTotalPoints && !elements.examTotalPoints.value) {
+            elements.examTotalPoints.value = 100;
+        }
     }
     
     // Handle tab navigation
@@ -82,7 +88,10 @@
         
         // Show the corresponding content
         const tabId = e.target.getAttribute('data-tab') + '-tab';
-        document.getElementById(tabId).classList.add('active');
+        const contentElement = document.getElementById(tabId);
+        if (contentElement) {
+            contentElement.classList.add('active');
+        }
     }
     
     // Set default date to today
@@ -104,12 +113,19 @@
     
     // Format date for display (Month DD, YYYY)
     function formatDateForDisplay(dateStr) {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
+        if (!dateStr) return 'Not set';
+        
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (e) {
+            console.error('Error formatting date:', e);
+            return dateStr || 'Not set';
+        }
     }
     
     // Capitalize first letter of a string
@@ -118,12 +134,26 @@
         return string.charAt(0).toUpperCase() + string.slice(1);
     }
     
+    // Generate a unique problem ID
+    function generateProblemId() {
+        // For consistent format with your database
+        return `P${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+    }
+    
+    // Generate a unique exam ID
+    function generateExamId() {
+        // For consistent format with your database
+        return `E${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+    }
+    
     // Setup all event listeners
     function setupEventListeners() {
         // Tab Navigation
-        elements.tabButtons.forEach(button => {
-            button.addEventListener('click', handleTabClick);
-        });
+        if (elements.tabButtons) {
+            elements.tabButtons.forEach(button => {
+                button.addEventListener('click', handleTabClick);
+            });
+        }
         
         // Exam Maker Events
         if (elements.saveExamBtn) {
@@ -496,13 +526,45 @@
         }
     }
     
+    // Navigate to previous page
+    function goToPreviousPage() {
+        if (currentPage > 1) {
+            currentPage--;
+            renderExamsTable();
+        }
+    }
+    
+    // Navigate to next page
+    function goToNextPage() {
+        const totalPages = Math.ceil(allExams.length / ROWS_PER_PAGE);
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderExamsTable();
+        }
+    }
+    
+    // Navigate to exam maker
+    function navigateToExamMaker() {
+        // Reset current edit exam ID
+        currentEditExamId = null;
+        
+        // Reset form
+        resetExamForm();
+        
+        // Switch to exam maker tab
+        const examMakerTab = document.querySelector('.tab-button[data-tab="exam-maker"]');
+        if (examMakerTab) {
+            examMakerTab.click();
+        }
+    }
+    
     // Filter problems based on search input and filters
     function filterProblems() {
         if (!elements.problemSearchInput) return;
         
         const searchTerm = elements.problemSearchInput.value.toLowerCase();
-        const difficultyFilter = elements.problemFilterDifficulty.value;
-        const categoryFilter = elements.problemFilterCategory.value;
+        const difficultyFilter = elements.problemFilterDifficulty ? elements.problemFilterDifficulty.value : '';
+        const categoryFilter = elements.problemFilterCategory ? elements.problemFilterCategory.value : '';
         
         filteredProblems = allProblems.filter(problem => {
             const matchesSearch = problem.title.toLowerCase().includes(searchTerm);
@@ -518,6 +580,8 @@
     // Handle problem selection
     function handleProblemSelection(checkbox) {
         const problemItem = checkbox.closest('.problem-item');
+        if (!problemItem) return;
+        
         const problemId = problemItem.dataset.id;
         
         if (checkbox.checked) {
@@ -571,9 +635,11 @@
         
         // Add close button event
         const closeBtn = previewModal.querySelector('.close-preview-btn');
-        closeBtn.addEventListener('click', () => {
-            document.body.removeChild(previewModal);
-        });
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                document.body.removeChild(previewModal);
+            });
+        }
         
         // Close on overlay click
         previewModal.addEventListener('click', (e) => {
@@ -585,7 +651,7 @@
     
     // Handle file selection
     function handleFileSelect(e) {
-        const file = e.target.files[0];
+        const file = e.target.files && e.target.files[0];
         if (file) {
             displayFileInfo(file);
         }
@@ -594,11 +660,15 @@
     // Handle file drop
     function handleFileDrop(e) {
         e.preventDefault();
-        elements.fileDropArea.style.borderColor = '#22262F';
+        if (elements.fileDropArea) {
+            elements.fileDropArea.style.borderColor = '#22262F';
+        }
         
-        const file = e.dataTransfer.files[0];
-        if (file) {
-            elements.problemFileInput.files = e.dataTransfer.files;
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+            const file = e.dataTransfer.files[0];
+            if (elements.problemFileInput) {
+                elements.problemFileInput.files = e.dataTransfer.files;
+            }
             displayFileInfo(file);
         }
     }
@@ -670,7 +740,7 @@
     // Handle save problem form
     async function handleSaveProblem() {
         // Basic validation
-        if (!elements.problemTitle.value.trim()) {
+        if (!elements.problemTitle || !elements.problemTitle.value.trim()) {
             alert('Please enter a problem title');
             return;
         }
@@ -679,9 +749,9 @@
         let problemData = {
             id: generateProblemId(),
             title: elements.problemTitle.value.trim(),
-            difficulty: elements.problemDifficulty.value,
-            statement: elements.problemStatement.value.trim(),
-            solution: elements.problemSolution.value.trim()
+            difficulty: elements.problemDifficulty ? elements.problemDifficulty.value : 'easy',
+            statement: elements.problemStatement ? elements.problemStatement.value.trim() : '',
+            solution: elements.problemSolution ? elements.problemSolution.value.trim() : ''
         };
         
         try {
@@ -702,6 +772,57 @@
             }
             
             // For development, log the data instead of submitting
+            console.log('Exam data to submit:', examData);
+            
+            // Simulate server delay
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Add or update in local exam list (would normally come from server response)
+            const selectedClass = elements.examClass.options[elements.examClass.selectedIndex];
+            const className = selectedClass ? selectedClass.textContent : 'Unknown Class';
+            
+            if (currentEditExamId) {
+                // Update existing exam
+                const examIndex = allExams.findIndex(e => e.id === currentEditExamId);
+                if (examIndex !== -1) {
+                    allExams[examIndex] = {
+                        id: examData.id,
+                        title: examData.title,
+                        class_id: examData.class_id,
+                        class_name: className,
+                        date: examData.date,
+                        problemCount: selectedProblems.length,
+                        status: examData.status
+                    };
+                }
+            } else {
+                // Add new exam
+                allExams.push({
+                    id: examData.id,
+                    title: examData.title,
+                    class_id: examData.class_id,
+                    class_name: className,
+                    date: examData.date,
+                    problemCount: selectedProblems.length,
+                    status: examData.status
+                });
+            }
+            
+            // Update UI
+            updateCounts();
+            renderExamsTable();
+            
+            // Reset form and state
+            resetExamForm();
+            currentEditExamId = null;
+            
+            alert(`Exam ${currentEditExamId ? 'updated' : 'saved'} successfully!`);
+            
+            // Switch to overview tab
+            const overviewTab = document.querySelector('.tab-button[data-tab="overview"]');
+            if (overviewTab) {
+                overviewTab.click();
+            }
             console.log('Problem data to submit:', problemData);
             
             // Simulate server delay
@@ -719,6 +840,12 @@
             resetProblemForm();
             
             alert('Problem saved successfully!');
+            
+            // Switch to problems tab
+            const problemsTab = document.querySelector('.tab-button[data-tab="problems"]');
+            if (problemsTab) {
+                problemsTab.click();
+            }
             
         } catch (error) {
             console.error('Error saving problem:', error);
@@ -740,12 +867,12 @@
     // Handle save exam form
     async function handleSaveExam() {
         // Basic validation
-        if (!elements.examTitle.value.trim()) {
+        if (!elements.examTitle || !elements.examTitle.value.trim()) {
             alert('Please enter an exam title');
             return;
         }
         
-        if (!elements.examClass.value) {
+        if (!elements.examClass || !elements.examClass.value) {
             alert('Please select a class');
             return;
         }
@@ -756,18 +883,18 @@
         }
         
         // Prepare exam data
-        const examId = generateExamId();
+        const examId = currentEditExamId || generateExamId();
         const examData = {
             id: examId,
             title: elements.examTitle.value.trim(),
             class_id: elements.examClass.value,
-            date: elements.examDate.value,
-            description: elements.examDescription.value.trim(),
-            totalPoints: elements.examTotalPoints.value,
-            status: elements.examStatus.value,
+            date: elements.examDate ? elements.examDate.value : '',
+            description: elements.examDescription ? elements.examDescription.value.trim() : '',
+            totalPoints: elements.examTotalPoints ? elements.examTotalPoints.value : 100,
+            status: elements.examStatus ? elements.examStatus.value : 'active',
             problems: selectedProblems.map((problem, index) => ({
                 id: problem.id,
-                points: Math.floor(elements.examTotalPoints.value / selectedProblems.length) // Distribute points evenly
+                points: Math.floor((elements.examTotalPoints ? elements.examTotalPoints.value : 100) / selectedProblems.length) // Distribute points evenly
             }))
         };
         
@@ -776,7 +903,7 @@
             
             // For development, log the data instead of submitting
             console.log('Exam data to submit:', examData);
-            
+        
             // Simulate server delay
             await new Promise(resolve => setTimeout(resolve, 1000));
             

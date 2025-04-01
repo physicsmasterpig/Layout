@@ -5,6 +5,7 @@
     
     // DOM Element References
     const elements = {
+        mainContent: document.querySelector('.main_content'),
         modal: document.getElementById('add-student-modal'),
         openModalBtn: document.getElementById('openModalBtn'),
         closeModalBtn: document.getElementById('closeModalBtn'),
@@ -262,7 +263,7 @@
             popup = document.createElement('div');
             popup.id = 'student-popup';
             popup.className = 'popup-overlay';
-            document.body.appendChild(popup);
+            elements.mainContent.appendChild(popup);
             
             // Close popup when clicking outside
             popup.addEventListener('click', (e) => {
