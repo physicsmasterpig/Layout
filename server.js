@@ -75,7 +75,7 @@ const sheetsRange = {
   'lecture': 'lecture!A2:E', 
   'enrollment': 'enrollment!A2:D', 
   'attendance': 'attendance!A2:D', 
-  'homework': 'homework!A2:E', 
+  'homework': 'homework!A2:G', 
   'exam': 'exam!A2:B', 
   'problem': 'problem!A2:C', 
   'exam_problem': 'exam_problem!A2:E',
