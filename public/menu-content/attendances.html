@@ -1,4 +1,4 @@
-<!-- Attendances page content -->
+<!-- Improved Attendances page content -->
 <style>
     /* Attendances Overview Styles */
     .attendances_overview_container {
@@ -110,6 +110,7 @@
     
     .action_button:hover {
         background-color: #6C4CC3;
+        transform: translateY(-2px);
     }
     
     .action_button:disabled {
@@ -118,21 +119,20 @@
         opacity: 0.5;
     }
     
-    /* Attendance Table Styles */
+    /* Attendance Container Styles */
     .attendance_container {
         width: 100%;
-        overflow-x: auto;
     }
     
     .attendance_header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 16px;
+        margin-bottom: 24px;
     }
     
     .attendance_header h1 {
-        font-size: 20px;
+        font-size: 22px;
         font-weight: 600;
         color: #FFFFFF;
         display: flex;
@@ -142,73 +142,277 @@
     
     .class_badge {
         padding: 4px 10px;
-        background-color: #7F56D9;
-        color: #FFFFFF;
+        background-color: rgba(127, 86, 217, 0.2);
+        color: #7F56D9;
         border-radius: 16px;
         font-size: 14px;
         font-weight: normal;
     }
     
+    .attendance_actions {
+        display: flex;
+        gap: 12px;
+    }
+    
+    /* Attendance Stats */
+    .attendance_overview {
+        margin-bottom: 32px;
+    }
+    
+    .attendance_stats {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 16px;
+    }
+    
+    .stat_item {
+        background-color: #13161B;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        padding: 16px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s ease;
+    }
+    
+    .stat_item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stat_label {
+        color: #94979C;
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+    
+    .stat_value {
+        color: #FFFFFF;
+        font-size: 24px;
+        font-weight: 600;
+    }
+    
+    /* Attendance Table Styles */
+    .attendance_table_container {
+        width: 100%;
+        overflow-x: auto;
+        margin-bottom: 32px;
+    }
+
     .attendance_table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         color: #FFFFFF;
+        background-color: #13161B;
         border: 1px solid #22262F;
         border-radius: 10px;
         overflow: hidden;
-    }
-    
-    .attendance_table thead {
-        background-color: #13161B;
     }
     
     .attendance_table thead th {
         padding: 16px;
         text-align: left;
         font-weight: 600;
+        background-color: #191D24;
         border-bottom: 1px solid #22262F;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .attendance_table thead th.lecture_col {
+        min-width: 100px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .attendance_table thead th.lecture_col:hover {
+        background-color: #22262F;
     }
     
     .attendance_table tbody tr {
-        background-color: #0C0E12;
         transition: all 0.2s ease;
     }
     
     .attendance_table tbody tr:hover {
-        background-color: #13161B;
+        background-color: #1E2128;
+    }
+    
+    .attendance_table tbody tr:not(:last-child) {
+        border-bottom: 1px solid #22262F;
     }
     
     .attendance_table tbody td {
         padding: 16px;
+    }
+    
+    .attendance_table td.student_name {
+        font-weight: 500;
+        min-width: 150px;
+    }
+
+    .attendance_table td.attendance_cell {
+        text-align: center;
+        width: 60px;
+        cursor: pointer;
+        position: relative;
+    }
+    
+    .attendance_table td.attendance_cell:hover {
+        background-color: #22262F;
+    }
+    
+    .attendance_table td.attendance_rate {
+        text-align: center;
+        width: 80px;
+    }
+    
+    .status_indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    } 
+
+    .status_indicator.present {
+        background-color: #17B26A;
+    }
+    
+    .status_indicator.late {
+        background-color: #F79009;
+    }
+    
+    .status_indicator.absent {
+        background-color: #F04438;
+    }
+    
+    .rate_display {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .rate_display.excellent {
+        background-color: rgba(23, 178, 106, 0.2);
+        color: #17B26A;
+    }
+    
+    .rate_display.good {
+        background-color: rgba(23, 178, 106, 0.1);
+        color: #17B26A;
+    }
+    
+    .rate_display.average {
+        background-color: rgba(247, 144, 9, 0.1);
+        color: #F79009;
+    }
+    
+    .rate_display.warning {
+        background-color: rgba(247, 144, 9, 0.2);
+        color: #F79009;
+    }
+    
+    .rate_display.poor {
+        background-color: rgba(240, 68, 56, 0.1);
+        color: #F04438;
+    }
+    
+    /* Lecture Details Section */
+    .lecture_details_section {
+        margin-top: 40px;
+    }
+    
+    .lecture_details_section h2 {
+        color: #FFFFFF;
+        font-size: 18px;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
         border-bottom: 1px solid #22262F;
     }
     
-    .attendance_table tbody tr:last-child td {
-        border-bottom: none;
+    .lecture_list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
     }
     
-    .lecture_header {
+    .lecture_row {
         display: flex;
         align-items: center;
-        gap: 12px;
-        background-color: #13161B !important;
-        border-bottom: 1px solid #22262F;
+        gap: 16px;
+        padding: 16px;
+        background-color: #13161B;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        cursor: pointer;
     }
     
-    .lecture_header h3 {
+    .lecture_row:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .lecture_row.selected {
+        border-color: #7F56D9;
+        background-color: rgba(127, 86, 217, 0.1);
+    }
+    
+    .lecture_info {
+        flex: 2;
+    }
+    
+    .lecture_title {
         font-size: 16px;
         font-weight: 600;
         color: #FFFFFF;
-        flex: 1;
+        margin-bottom: 4px;
     }
     
-    .lecture_header .lecture_date {
+    .lecture_date {
         font-size: 14px;
         color: #94979C;
     }
     
-    .lecture_header .edit_button {
-        padding: 6px 12px;
+    .lecture_stats {
+        display: flex;
+        gap: 16px;
+        flex: 3;
+    }
+    
+    .lecture_stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .lecture_stat .stat_label {
+        margin-bottom: 4px;
+    }
+    
+    .lecture_stat .stat_value {
+        font-size: 16px;
+    }
+    
+    .lecture_stat .stat_value.present {
+        color: #17B26A;
+    }
+    
+    .lecture_stat .stat_value.late {
+        color: #F79009;
+    }
+    
+    .lecture_stat .stat_value.absent {
+        color: #F04438;
+    }
+    
+    .edit_button {
+        padding: 8px 12px;
         background-color: #7F56D9;
         color: #FFFFFF;
         border: none;
@@ -218,80 +422,19 @@
         transition: all 0.2s ease;
     }
     
-    .lecture_header .edit_button:hover {
+    .edit_button:hover {
         background-color: #6C4CC3;
+        transform: translateY(-2px);
     }
     
-    .status_indicator {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-right: 6px;
-    }
-    
-    .status_indicator.present {
-        background-color: #17B26A;
-    }
-    
-    .status_indicator.absent {
-        background-color: #F04438;
-    }
-    
-    .status_indicator.late {
-        background-color: #F79009;
-    }
-    
-    .status_text {
-        font-size: 14px;
-    }
-    
-    .status_text.present {
-        color: #17B26A;
-    }
-    
-    .status_text.absent {
-        color: #F04438;
-    }
-    
-    .status_text.late {
-        color: #F79009;
-    }
-    
-    .homework_progress {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .progress_bar {
-        flex: 1;
-        height: 8px;
-        background-color: #22262F;
-        border-radius: 4px;
-        overflow: hidden;
-    }
-    
-    .progress_fill {
-        height: 100%;
-        background-color: #7F56D9;
-        border-radius: 4px;
-    }
-    
-    .progress_text {
-        min-width: 40px;
-        text-align: right;
-        font-size: 14px;
-        color: #94979C;
-    }
-    
+    /* Empty State */
     .empty_state {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         padding: 60px 20px;
-        background-color: #0C0E12;
+        background-color: #13161B;
         border: 1px solid #22262F;
         border-radius: 10px;
         text-align: center;
@@ -315,7 +458,7 @@
         max-width: 500px;
     }
     
-    /* Modal Styles */
+    /* Modal Styles - Improved */
     .modal_overlay {
         position: fixed;
         top: 0;
@@ -327,10 +470,17 @@
         justify-content: center;
         align-items: center;
         z-index: 1000;
+        backdrop-filter: blur(2px);
     }
     
     .modal_overlay.show {
         display: flex;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
     
     .modal_content {
@@ -345,6 +495,13 @@
         flex-direction: column;
         overflow-y: auto;
         color: #FFFFFF;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        animation: slideUp 0.3s ease;
+    }
+    
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
     }
     
     .modal_header {
@@ -361,24 +518,34 @@
     }
     
     .modal_close {
+        width: 32px;
+        height: 32px;
         background: none;
         border: none;
         color: #94979C;
         cursor: pointer;
-        font-size: 20px;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
         transition: all 0.2s ease;
     }
     
     .modal_close:hover {
         color: #FFFFFF;
+        background-color: rgba(255, 255, 255, 0.1);
     }
     
     .modal_body {
         margin-bottom: 24px;
+        flex: 1;
+        overflow-y: auto;
     }
     
     .lecture_info {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 16px;
         margin-bottom: 20px;
         padding-bottom: 16px;
@@ -386,18 +553,22 @@
     }
     
     .info_item {
-        flex: 1;
+        background-color: #0C0E12;
+        border-radius: 8px;
+        padding: 12px;
     }
     
     .info_item h3 {
-        font-size: 14px;
+        font-size: 12px;
         color: #94979C;
         margin-bottom: 6px;
+        font-weight: normal;
     }
     
     .info_item p {
         font-size: 16px;
         color: #FFFFFF;
+        font-weight: 600;
     }
     
     /* Tabs within modal */
@@ -435,21 +606,40 @@
     
     .tab_content {
         display: none;
+        padding: 10px 0;
+        max-height: 400px;
+        overflow-y: auto;
     }
     
     .tab_content.active {
         display: block;
+        animation: fadeIn 0.3s ease;
     }
     
+    /* Student Row Styles */
     .student_row {
         display: flex;
         align-items: center;
-        padding: 12px 0;
-        border-bottom: 1px solid #22262F;
+        padding: 16px;
+        background-color: #0C0E12;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        transition: all 0.3s ease;
     }
     
-    .student_row:last-child {
-        border-bottom: none;
+    .student_row:hover {
+        background-color: #1E2128;
+    }
+    
+    .student_row.highlight {
+        border: 2px solid #7F56D9;
+        animation: pulse 1.5s ease;
+    }
+    
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(127, 86, 217, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(127, 86, 217, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(127, 86, 217, 0); }
     }
     
     .student_info {
@@ -470,7 +660,7 @@
     
     .attendance_options {
         display: flex;
-        gap: 12px;
+        gap: 16px;
     }
     
     .attendance_option {
@@ -478,21 +668,46 @@
         align-items: center;
         gap: 8px;
         cursor: pointer;
+        padding: 6px 10px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+    
+    .attendance_option:hover {
+        background-color: #1E2128;
     }
     
     .attendance_option input[type="radio"] {
         cursor: pointer;
         accent-color: #7F56D9;
+        width: 16px;
+        height: 16px;
     }
     
     .attendance_option label {
         cursor: pointer;
+        font-size: 14px;
     }
     
+    .status_text.present {
+        color: #17B26A;
+    }
+    
+    .status_text.late {
+        color: #F79009;
+    }
+    
+    .status_text.absent {
+        color: #F04438;
+    }
+    
+    /* Homework Row Styles */
     .homework_row {
+        width: 100%;
         margin-top: 12px;
-        padding-top: 8px;
-        border-top: 1px dashed #22262F;
+        padding: 12px;
+        background-color: #191D24;
+        border-radius: 8px;
     }
     
     .homework_header {
@@ -510,7 +725,7 @@
     
     .homework_inputs {
         display: flex;
-        gap: 12px;
+        gap: 16px;
     }
     
     .input_group {
@@ -524,25 +739,39 @@
         margin-bottom: 6px;
     }
     
-    .input_group input, .input_group select, .input_group textarea {
+    .input_group input, 
+    .input_group select, 
+    .input_group textarea {
         width: 100%;
-        padding: 8px 12px;
+        padding: 10px 12px;
         background-color: #0C0E12;
         border: 1px solid #22262F;
         border-radius: 6px;
         color: #FFFFFF;
+        font-size: 14px;
+        transition: all 0.2s ease;
     }
     
-    .input_group input:focus, .input_group select:focus, .input_group textarea:focus {
+    .input_group input:focus, 
+    .input_group select:focus, 
+    .input_group textarea:focus {
         outline: none;
         border-color: #7F56D9;
+        box-shadow: 0 0 0 2px rgba(127, 86, 217, 0.2);
     }
     
+    .input_group textarea {
+        resize: vertical;
+        min-height: 60px;
+    }
+    
+    /* Form Actions */
     .modal_footer {
         display: flex;
         justify-content: flex-end;
         gap: 12px;
-        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 1px solid #22262F;
     }
     
     .cancel_button {
@@ -553,6 +782,7 @@
         border-radius: 8px;
         cursor: pointer;
         transition: all 0.2s ease;
+        font-size: 14px;
     }
     
     .cancel_button:hover {
@@ -568,108 +798,93 @@
         cursor: pointer;
         font-weight: 600;
         transition: all 0.2s ease;
+        font-size: 14px;
     }
     
     .save_button:hover {
         background-color: #6C4CC3;
+        transform: translateY(-2px);
     }
     
-    /* Tooltip styles */
-    .tooltip {
-        position: relative;
-        display: inline-block;
+    /* Scrollbar Styles */
+    .tab_content::-webkit-scrollbar {
+        width: 8px;
     }
     
-    .tooltip .tooltip_text {
-        visibility: hidden;
-        width: 200px;
-        background-color: #1E2128;
-        color: #FFFFFF;
-        text-align: center;
-        border-radius: 6px;
-        padding: 8px;
-        position: absolute;
-        z-index: 1;
-        bottom: 125%;
-        left: 50%;
-        transform: translateX(-50%);
-        opacity: 0;
-        transition: opacity 0.3s;
-        font-size: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        pointer-events: none;
+    .tab_content::-webkit-scrollbar-track {
+        background: #0C0E12;
+        border-radius: 4px;
     }
     
-    .tooltip .tooltip_text::after {
-        content: "";
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        margin-left: -5px;
-        border-width: 5px;
-        border-style: solid;
-        border-color: #1E2128 transparent transparent transparent;
+    .tab_content::-webkit-scrollbar-thumb {
+        background: #22262F;
+        border-radius: 4px;
     }
     
-    .tooltip:hover .tooltip_text {
-        visibility: visible;
-        opacity: 1;
+    .tab_content::-webkit-scrollbar-thumb:hover {
+        background: #1E2128;
     }
     
-    /* Toggle switch styles */
-    .toggle_switch {
-        position: relative;
-        display: inline-block;
-        width: 50px;
-        height: 24px;
+    /* Responsive styles */
+    @media (max-width: 1200px) {
+        .lecture_stats {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .lecture_stat {
+            flex-direction: row;
+            justify-content: space-between;
+        }
     }
     
-    .toggle_switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
+    @media (max-width: 992px) {
+        .attendance_table_container {
+            overflow-x: auto;
+        }
+        
+        .attendances_overview_container {
+            flex-direction: column;
+        }
+        
+        .attendances_overview_wrapper {
+            width: 100%;
+        }
+        
+        .lecture_row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .lecture_stats {
+            flex-direction: row;
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .edit_button {
+            align-self: flex-end;
+        }
     }
     
-    .toggle_slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #22262F;
-        transition: .4s;
-        border-radius: 24px;
-    }
-    
-    .toggle_slider:before {
-        position: absolute;
-        content: "";
-        height: 16px;
-        width: 16px;
-        left: 4px;
-        bottom: 4px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
-    }
-    
-    input:checked + .toggle_slider {
-        background-color: #7F56D9;
-    }
-    
-    input:focus + .toggle_slider {
-        box-shadow: 0 0 1px #7F56D9;
-    }
-    
-    input:checked + .toggle_slider:before {
-        transform: translateX(26px);
-    }
-    
-    .toggle_label {
-        margin-left: 60px;
-        font-size: 14px;
-        color: #FFFFFF;
+    @media (max-width: 768px) {
+        .attendance_options {
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .modal_content {
+            width: 95%;
+            max-height: 90vh;
+        }
+        
+        .homework_inputs {
+            flex-direction: column;
+        }
+        
+        .selection_content {
+            flex-direction: column;
+        }
     }
 </style>
 
@@ -691,7 +906,7 @@
 <div class="selection_container">
     <div class="selection_header">
         <h1>Select class and lecture</h1>
-        <p>Choose an active class and lecture to view or edit attendance records</p>
+        <p>Choose a class to view attendance overview, then select a lecture to edit attendance records</p>
     </div>
     <div class="selection_content">
         <div class="selection_dropdown">
@@ -706,7 +921,7 @@
                 <!-- Lectures will be populated based on selected class -->
             </select>
         </div>
-        <button id="view-attendance-btn" class="action_button" disabled>View Attendance</button>
+        <button id="view-attendance-btn" class="action_button" disabled>Edit Attendance</button>
     </div>
 </div>
 
@@ -721,7 +936,7 @@
                 <path d="M9.75 15.75H14.25" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <h2>No attendance data selected</h2>
-            <p>Select a class and lecture above to view attendance records</p>
+            <p>Select a class above to view attendance overview</p>
         </div>
     </div>
 </div>
@@ -730,7 +945,7 @@
 <div id="edit-attendance-modal" class="modal_overlay">
     <div class="modal_content">
         <div class="modal_header">
-            <h2>Edit Attendance & Homework</h2>
+            <h2>Manage Attendance & Homework</h2>
             <button class="modal_close">&times;</button>
         </div>
         <div class="modal_body">
@@ -757,74 +972,23 @@
             <div id="attendance-tab" class="tab_content active">
                 <!-- Students attendance will be populated here -->
                 <div id="attendance-students-container">
-                    <!-- Example student row (will be generated dynamically) -->
-                    <div class="student_row">
-                        <div class="student_info">
-                            <div class="student_name">Student Name</div>
-                            <div class="student_school">School - Generation</div>
-                        </div>
-                        <div class="attendance_options">
-                            <div class="attendance_option">
-                                <input type="radio" name="attendance-student1" id="present-student1" value="present" checked>
-                                <label for="present-student1" class="status_text present">Present</label>
-                            </div>
-                            <div class="attendance_option">
-                                <input type="radio" name="attendance-student1" id="late-student1" value="late">
-                                <label for="late-student1" class="status_text late">Late</label>
-                            </div>
-                            <div class="attendance_option">
-                                <input type="radio" name="attendance-student1" id="absent-student1" value="absent">
-                                <label for="absent-student1" class="status_text absent">Absent</label>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Student rows will be generated dynamically -->
                 </div>
             </div>
             
             <div id="homework-tab" class="tab_content">
                 <!-- Homework settings -->
-                <div class="homework_settings">
+                <div class="homework_settings" style="margin-bottom: 20px; padding: 16px; background-color: #191D24; border-radius: 8px;">
                     <div class="form_group">
-                        <label for="total-problems" class="form_label">Total Problems</label>
-                        <input type="number" id="total-problems" min="1" value="10" class="form_input">
-                        <small class="form_helper">Global setting for all students in this lecture</small>
+                        <label for="total-problems" style="display: block; margin-bottom: 8px; color: #94979C; font-size: 14px;">Total Problems</label>
+                        <input type="number" id="total-problems" min="1" value="10" style="width: 100px; padding: 8px; background-color: #0C0E12; border: 1px solid #22262F; border-radius: 6px; color: #FFFFFF;">
+                        <small style="display: block; margin-top: 6px; color: #94979C; font-size: 12px;">This setting applies to all students in this lecture</small>
                     </div>
                 </div>
                 
                 <!-- Students homework will be populated here -->
                 <div id="homework-students-container">
-                    <!-- Example student homework row (will be generated dynamically) -->
-                    <div class="student_row">
-                        <div class="student_info">
-                            <div class="student_name">Student Name</div>
-                            <div class="student_school">School - Generation</div>
-                        </div>
-                        <div class="homework_row">
-                            <div class="homework_header">
-                                <div class="homework_title">Homework Details</div>
-                            </div>
-                            <div class="homework_inputs">
-                                <div class="input_group">
-                                    <label>Problems Completed</label>
-                                    <input type="number" min="0" max="10" value="8">
-                                </div>
-                                <div class="input_group">
-                                    <label>Classification</label>
-                                    <select>
-                                        <option value="excellent">Excellent</option>
-                                        <option value="good" selected>Good</option>
-                                        <option value="average">Average</option>
-                                        <option value="needs_improvement">Needs Improvement</option>
-                                        <option value="incomplete">Incomplete</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="input_group" style="margin-top: 12px;">
-                                <label>Comments</label>
-                                <textarea rows="2" placeholder="Add comment about this student's homework"></textarea>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Student homework rows will be generated dynamically -->
                 </div>
             </div>
         </div>
