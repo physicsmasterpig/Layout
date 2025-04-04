@@ -1,0 +1,7 @@
+Optimize updating sheet mechanism, i.e. class files, etc. 
+    only fetch the change
+exam page and message page 
+analytics page 
+ID generation with no duplicate 
+calender and dashboard 
+home'

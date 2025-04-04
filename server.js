@@ -592,6 +592,303 @@ app.get('/attendance/:lecture_id', async (req, res) => {
   }
 });
 
+// In server.js or a dedicated routes file
+app.post('/save-attendance-homework', async (req, res) => {
+  try {
+      const { lecture_id, attendance_data, homework_data } = req.body;
+      
+      // Validate lecture exists
+      const lectureExists = await verifyLectureExists(lecture_id);
+      if (!lectureExists) {
+          return res.status(404).json({ error: 'Lecture not found' });
+      }
+      
+      // Process attendance records
+      const attendanceResults = [];
+      for (const record of attendance_data) {
+          // Check if record exists by finding the entry in the sheet
+          const existingRecord = await findAttendanceRecord(record.lecture_id, record.student_id);
+          
+          if (existingRecord) {
+              // Update existing record
+              await updateAttendanceRecord(existingRecord.id, record.status);
+              attendanceResults.push({
+                  id: existingRecord.id,
+                  student_id: record.student_id,
+                  status: record.status,
+                  updated: true
+              });
+          } else {
+              // Create new record
+              const newId = await createAttendanceRecord(record);
+              attendanceResults.push({
+                  id: newId,
+                  student_id: record.student_id,
+                  status: record.status,
+                  updated: false
+              });
+          }
+      }
+      
+      // Process homework records (similar approach)
+      const homeworkResults = [];
+      for (const record of homework_data) {
+          const existingRecord = await findHomeworkRecord(record.lecture_id, record.student_id);
+          
+          if (existingRecord) {
+              await updateHomeworkRecord(existingRecord.id, {
+                  total_problems: record.total_problems,
+                  completed_problems: record.completed_problems,
+                  classification: record.classification,
+                  comments: record.comments
+              });
+              homeworkResults.push({
+                  id: existingRecord.id,
+                  student_id: record.student_id,
+                  updated: true
+              });
+          } else {
+              const newId = await createHomeworkRecord(record);
+              homeworkResults.push({
+                  id: newId,
+                  student_id: record.student_id,
+                  updated: false
+              });
+          }
+      }
+      
+      // Return success response with updated records
+      res.status(200).json({
+          success: true,
+          message: 'Attendance and homework data saved successfully',
+          attendance: attendanceResults,
+          homework: homeworkResults
+      });
+      
+  } catch (error) {
+      console.error('Error saving attendance and homework:', error);
+      res.status(500).json({
+          success: false,
+          message: 'Failed to save data',
+          error: error.message
+      });
+  }
+});
+
+// Helper function implementations would interact with your Google Sheets
+async function findAttendanceRecord(lectureId, studentId) {
+  try {
+    // Get all attendance data from Google Sheets
+    const result = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: sheetsRange.attendance
+    });
+    
+    const attendanceRows = result.data.values || [];
+    
+    // Find the record that matches lecture_id and student_id
+    const record = attendanceRows.find(row => 
+        row[1] === lectureId && row[2] === studentId
+    );
+    
+    if (record) {
+        return {
+            id: record[0],
+            lecture_id: record[1],
+            student_id: record[2],
+            status: record[3] || ''
+        };
+    }
+    
+    return null;
+} catch (error) {
+    console.error('Error finding attendance record:', error);
+    throw error;
+}
+}
+
+async function updateAttendanceRecord(recordId, status) {
+ try {
+      // First, get the row index of the record
+      const result = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: sheetsRange.attendance
+      });
+      
+      const attendanceRows = result.data.values || [];
+      const rowIndex = attendanceRows.findIndex(row => row[0] === recordId);
+      
+      if (rowIndex === -1) {
+          throw new Error(`Attendance record with ID ${recordId} not found`);
+      }
+      
+      // The actual row in the sheet is rowIndex + 2 (header row + 0-indexing)
+      const sheetRow = rowIndex + 2;
+      
+      // Update the record
+      await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `attendance!D${sheetRow}:D${sheetRow}`, // Update columns C through G
+          valueInputOption: 'USER_ENTERED',
+          resource: {
+              values: [[
+                  data.status
+              ]]
+          }
+      });
+      
+      return true;
+  } catch (error) {
+      console.error('Error updating attendance record:', error);
+      throw error;
+  }
+  }
+
+async function createAttendanceRecord(record) {
+try {
+      // Generate a unique ID if not provided
+      const attendanceId = record.attendance_id || `AT${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      
+      // Append the new record
+      await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: sheetsRange.attendance,
+          valueInputOption: 'USER_ENTERED',
+          resource: {
+              values: [[
+                  attendanceId,
+                  record.lecture_id,
+                  record.student_id,
+                  record.status
+              ]]
+          }
+      });
+      
+      return attendanceId;
+  } catch (error) {
+      console.error('Error creating attendance record:', error);
+      throw error;
+  }
+}
+
+async function findHomeworkRecord(lectureId, studentId) {
+  try {
+      // Get all homework data from Google Sheets
+      const result = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: sheetsRange.homework
+      });
+      
+      const homeworkRows = result.data.values || [];
+      
+      // Find the record that matches lecture_id and student_id
+      const record = homeworkRows.find(row => 
+          row[1] === lectureId && row[2] === studentId
+      );
+      
+      if (record) {
+          return {
+              id: record[0],
+              lecture_id: record[1],
+              student_id: record[2],
+              total_problems: parseInt(record[3]) || 0,
+              completed_problems: parseInt(record[4]) || 0,
+              classification: record[5] || '',
+              comments: record[6] || ''
+          };
+      }
+      
+      return null;
+  } catch (error) {
+      console.error('Error finding homework record:', error);
+      throw error;
+  }
+}
+
+async function updateHomeworkRecord(recordId, data) {
+  try {
+      // First, get the row index of the record
+      const result = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: sheetsRange.homework
+      });
+      
+      const homeworkRows = result.data.values || [];
+      const rowIndex = homeworkRows.findIndex(row => row[0] === recordId);
+      
+      if (rowIndex === -1) {
+          throw new Error(`Homework record with ID ${recordId} not found`);
+      }
+      
+      // The actual row in the sheet is rowIndex + 2 (header row + 0-indexing)
+      const sheetRow = rowIndex + 2;
+      
+      // Update the record
+      await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `homework!C${sheetRow}:G${sheetRow}`, // Update columns C through G
+          valueInputOption: 'USER_ENTERED',
+          resource: {
+              values: [[
+                  data.total_problems,
+                  data.completed_problems,
+                  data.classification,
+                  data.comments
+              ]]
+          }
+      });
+      
+      return true;
+  } catch (error) {
+      console.error('Error updating homework record:', error);
+      throw error;
+  }
+}
+
+async function createHomeworkRecord(record) {
+  try {
+      // Generate a unique ID if not provided
+      const homeworkId = record.homework_id || `HW${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      
+      // Append the new record
+      await sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: sheetsRange.homework,
+          valueInputOption: 'USER_ENTERED',
+          resource: {
+              values: [[
+                  homeworkId,
+                  record.lecture_id,
+                  record.student_id,
+                  record.total_problems,
+                  record.completed_problems,
+                  record.classification,
+                  record.comments
+              ]]
+          }
+      });
+      
+      return homeworkId;
+  } catch (error) {
+      console.error('Error creating homework record:', error);
+      throw error;
+  }
+}
+
+async function verifyLectureExists(lectureId) {
+  try {
+      const result = await sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: sheetsRange.lecture
+      });
+      
+      const lectureRows = result.data.values || [];
+      return lectureRows.some(row => row[0] === lectureId);
+  } catch (error) {
+      console.error('Error verifying lecture exists:', error);
+      throw error;
+  }
+}
 // Helper function to generate a student ID
 function generateStudentId() {
   return 'S' + Date.now().toString().slice(-6) + Math.floor(Math.random() * 1000).toString().padStart(3, '0');

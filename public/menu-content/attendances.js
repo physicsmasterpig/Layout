@@ -1019,12 +1019,9 @@
     // Save attendance and homework data
     async function saveAttendanceAndHomework() {
         try {
-            await window.appUtils.showLoadingIndicator();
+            await showLoadingIndicator();
             
-            // In a real implementation, we would send this data to the server
-            // For now, we'll update our local data structures
-            
-            // Update attendance data
+            // Collect attendance data
             const updatedAttendances = Array.from(elements.attendanceStudentsContainer.querySelectorAll('.student_row')).map(row => {
                 const studentId = row.dataset.studentId;
                 const checkedRadio = row.querySelector('input[type="radio"]:checked');
@@ -1046,13 +1043,69 @@
                     };
                 }
                 
-                // Default to none if no existing record and no selection
+                // Default to absent if no existing record and no selection
                 return {
                     studentId,
-                    status: ATTENDANCE_STATUS.NONE
+                    status: ATTENDANCE_STATUS.ABSENT
                 };
             });
             
+            // Collect homework data
+            const updatedHomeworks = Array.from(elements.homeworkStudentsContainer.querySelectorAll('.student_row')).map(row => {
+                const studentId = row.dataset.studentId;
+                const completedProblems = parseInt(row.querySelector('.completed-problems').value) || 0;
+                const classification = row.querySelector('.homework-classification').value;
+                const comments = row.querySelector('.homework-comments').value || '';
+                
+                return {
+                    studentId,
+                    completedProblems,
+                    classification,
+                    comments
+                };
+            });
+            
+            // Prepare the data to send to the server
+            const dataToSend = {
+                lecture_id: selectedLectureId,
+                attendance_data: updatedAttendances.map(att => ({
+                    attendance_id: generateAttendanceId(), // This will be ignored if the record already exists
+                    lecture_id: selectedLectureId,
+                    student_id: att.studentId,
+                    status: att.status
+                })),
+                homework_data: updatedHomeworks.map(hw => ({
+                    homework_id: generateHomeworkId(), // This will be ignored if the record already exists
+                    lecture_id: selectedLectureId,
+                    student_id: hw.studentId,
+                    total_problems: currentTotalProblems,
+                    completed_problems: hw.completedProblems,
+                    classification: hw.classification,
+                    comments: hw.comments
+                }))
+            };
+            
+            console.log('Saving data to server:', dataToSend);
+            
+            // Send the data to the server
+            const response = await fetch('/save-attendance-homework', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(dataToSend)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('Server response:', result);
+            
+            // Update local data structures with the saved data
+            
+            // Update attendance data
             updatedAttendances.forEach(update => {
                 const index = attendanceData.findIndex(a => 
                     a.lecture_id === selectedLectureId && a.student_id === update.studentId
@@ -1075,38 +1128,32 @@
             });
             
             // Update homework data
-            const homeworkRows = elements.homeworkStudentsContainer.querySelectorAll('.student_row');
-            for (const row of homeworkRows) {
-                const studentId = row.dataset.studentId;
-                const completedProblems = parseInt(row.querySelector('.completed-problems').value) || 0;
-                const classification = row.querySelector('.homework-classification').value;
-                const comments = row.querySelector('.homework-comments').value;
-                
+            updatedHomeworks.forEach(update => {
                 const index = homeworkData.findIndex(hw => 
-                    hw.lecture_id === selectedLectureId && hw.student_id === studentId
+                    hw.lecture_id === selectedLectureId && hw.student_id === update.studentId
                 );
                 
                 if (index !== -1) {
                     // Update existing record
                     homeworkData[index].total_problems = currentTotalProblems;
-                    homeworkData[index].completed_problems = completedProblems;
-                    homeworkData[index].classification = classification;
-                    homeworkData[index].comments = comments;
+                    homeworkData[index].completed_problems = update.completedProblems;
+                    homeworkData[index].classification = update.classification;
+                    homeworkData[index].comments = update.comments;
                 } else {
                     // Create new record
                     const newRecord = {
                         id: generateHomeworkId(),
                         lecture_id: selectedLectureId,
-                        student_id: studentId,
+                        student_id: update.studentId,
                         total_problems: currentTotalProblems,
-                        completed_problems: completedProblems,
-                        classification: classification,
-                        comments: comments
+                        completed_problems: update.completedProblems,
+                        classification: update.classification,
+                        comments: update.comments
                     };
                     
                     homeworkData.push(newRecord);
                 }
-            }
+            });
             
             // Update statistics
             updateStatistics();
@@ -1122,9 +1169,9 @@
             
         } catch (error) {
             console.error("Error saving attendance data:", error);
-            alert("Failed to save attendance data. Please try again.");
+            alert("Failed to save attendance data. Please try again.\nError: " + error.message);
         } finally {
-            await window.appUtils.hideLoadingIndicator();
+            await hideLoadingIndicator();
         }
     }
     
