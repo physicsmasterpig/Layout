@@ -521,8 +521,6 @@
             // Simulate server delay
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            // Uncomment to actually submit when ready
-            /*
             const response = await fetch('/add-class', {
                 method: 'POST',
                 headers: {
@@ -537,7 +535,7 @@
             
             const result = await response.json();
             console.log('Server response:', result);
-            */
+            
             
             alert('Class created successfully!');
             

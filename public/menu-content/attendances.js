@@ -4,7 +4,10 @@
     const ATTENDANCE_STATUS = {
         PRESENT: 'present',
         LATE: 'late',
-        ABSENT: 'absent'
+        ABSENT: 'absent', 
+        VIDEO: 'video',
+        EXCUSED: 'excused', 
+        NONE: 'N\/A'
     };
     
     const HOMEWORK_CLASSIFICATION = {
@@ -121,7 +124,7 @@
                 id: row[0],
                 lecture_id: row[1],
                 student_id: row[2],
-                status: row[3] || ATTENDANCE_STATUS.ABSENT
+                status: row[3] || ATTENDANCE_STATUS.NONE
             }));
             
             // Load homework data (if available)
@@ -133,7 +136,7 @@
                     student_id: row[2],
                     total_problems: row[3] ? parseInt(row[3]) : 0,
                     completed_problems: row[4] ? parseInt(row[4]) : 0,
-                    classification: row[5] || HOMEWORK_CLASSIFICATION.INCOMPLETE,
+                    classification: row[5] || HOMEWORK_CLASSIFICATION.NONE,
                     comments: row[6] || ''
                 }));
             } catch (error) {
@@ -244,9 +247,9 @@
         elements.lectureSelect.removeAttribute('disabled');
         elements.lectureSelect.innerHTML = '<option value="">Select Lecture</option>';
         
-        // Sort lectures by date (newest first)
+        // Sort lectures by date (oldest first)
         const sortedLectures = [...lectures].sort((a, b) => {
-            return new Date(b.date) - new Date(a.date);
+            return new Date(a.date) - new Date(b.date);
         });
         
         sortedLectures.forEach(lecture => {
@@ -337,7 +340,7 @@
             // Get lectures for this class
             const classLectures = lecturesData
                 .filter(l => l.class_id === classId)
-                .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date, newest first
+                .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date, oldest first
             
             // Start building the HTML
             let html = `
@@ -397,6 +400,9 @@
                     present: 0,
                     late: 0,
                     absent: 0,
+                    video: 0,
+                    excused: 0,
+                    none: 0,
                     total: classLectures.length
                 };
                 
@@ -411,14 +417,21 @@
                         a.lecture_id === lecture.id && a.student_id === student.id
                     );
                     
-                    const status = attendance ? attendance.status : ATTENDANCE_STATUS.ABSENT;
+                    const status = attendance ? attendance.status : ATTENDANCE_STATUS.NONE;
                     
                     // Update counts
                     if (status === ATTENDANCE_STATUS.PRESENT) {
                         studentAttendanceCounts.present++;
                     } else if (status === ATTENDANCE_STATUS.LATE) {
                         studentAttendanceCounts.late++;
-                    } else {
+                    } else if (status === ATTENDANCE_STATUS.VIDEO) {
+                        studentAttendanceCounts.video++;
+                    } else if (status === ATTENDANCE_STATUS.EXCUSED) {
+                        studentAttendanceCounts.excused++;
+                    } else if (status === ATTENDANCE_STATUS.NONE) {
+                        studentAttendanceCounts.none++;
+                    }
+                     else {
                         studentAttendanceCounts.absent++;
                     }
                     
@@ -432,7 +445,7 @@
                 
                 // Calculate attendance rate
                 const attendanceRate = classLectures.length > 0 
-                    ? Math.round(((studentAttendanceCounts.present + (studentAttendanceCounts.late * 0.5)) / studentAttendanceCounts.total) * 100) 
+                    ? Math.round(((studentAttendanceCounts.present + studentAttendanceCounts.late + studentAttendanceCounts.video + studentAttendanceCounts.excused) / (studentAttendanceCounts.total - studentAttendanceCounts.none)) * 100) 
                     : 0;
                 
                 // Add attendance rate column
@@ -489,6 +502,18 @@
                             <div class="lecture_stat">
                                 <span class="stat_label">Absent</span>
                                 <span class="stat_value absent">${lectureStats.absent}</span>
+                            </div>
+                            <div class="lecture_stat">
+                                <span class="stat_label">Video</span>
+                                <span class="stat_value video">${lectureStats.video}</span>
+                            </div>
+                            <div class="lecture_stat">
+                                <span class="stat_label">Excused</span>
+                                <span class="stat_value excused">${lectureStats.excused}</span>
+                            </div>
+                            <div class="lecture_stat">
+                                <span class="stat_label">None</span>
+                                <span class="stat_value none">${lectureStats.none}</span>
                             </div>
                         </div>
                         <button class="edit_button" data-lecture-id="${lecture.id}">Edit Attendance</button>
@@ -599,6 +624,9 @@
             present: 0,
             late: 0,
             absent: 0,
+            video: 0,
+            excused: 0,
+            none: 0,
             total: enrolledStudents.length
         };
         
@@ -613,11 +641,20 @@
                     stats.present++;
                 } else if (attendance.status === ATTENDANCE_STATUS.LATE) {
                     stats.late++;
-                } else {
+                } else if (attendance.status === ATTENDANCE_STATUS.VIDEO) {
+                    stats.video++;
+                }
+                else if (attendance.status === ATTENDANCE_STATUS.EXCUSED) {
+                    stats.excused++;
+                } 
+                else if (attendance.status === ATTENDANCE_STATUS.NONE) {
+                    stats.none++;
+                }
+                else {
                     stats.absent++;
                 }
             } else {
-                stats.absent++;
+                stats.none++;
             }
         });
         
@@ -632,6 +669,10 @@
         
         let totalPresent = 0;
         let totalLate = 0;
+        let totalVideo = 0;
+        let totalExcused = 0;
+        let totalNone = 0;
+
         let totalSessions = lectures.length * students.length;
         
         // Count present and late for all students and lectures
@@ -646,13 +687,21 @@
                         totalPresent++;
                     } else if (attendance.status === ATTENDANCE_STATUS.LATE) {
                         totalLate++;
+                    } else if (attendance.status === ATTENDANCE_STATUS.VIDEO) {
+                        totalVideo++;
+                    } else if (attendance.status === ATTENDANCE_STATUS.EXCUSED) {
+                        totalExcused++;
+                    } else if (attendance.status === ATTENDANCE_STATUS.NONE) {
+                        totalNone++;
                     }
+                } else {
+                    totalNone++;
                 }
             });
         });
         
         // Calculate rate (late counts as 0.5)
-        const rate = ((totalPresent + (totalLate * 0.5)) / totalSessions) * 100;
+        const rate = ((totalPresent + totalLate + totalExcused + totalVideo) / (totalSessions - totalNone)) * 100;
         return Math.round(rate);
     }
     
@@ -704,7 +753,7 @@
                     id: generateAttendanceId(),
                     lecture_id: selectedLectureId,
                     student_id: student.id,
-                    status: ATTENDANCE_STATUS.ABSENT // Default to absent
+                    status: ATTENDANCE_STATUS.NONE // Default to none
                 };
                 
                 currentAttendanceData.push(record);
@@ -806,6 +855,18 @@
                         <div class="attendance_option">
                             <input type="radio" name="attendance-${student.id}" id="absent-${student.id}" value="${ATTENDANCE_STATUS.ABSENT}" ${att.status === ATTENDANCE_STATUS.ABSENT ? 'checked' : ''}>
                             <label for="absent-${student.id}" class="status_text absent">Absent</label>
+                        </div>
+                        <div class="attendance_option">
+                            <input type="radio" name="attendance-${student.id}" id="video-${student.id}" value="${ATTENDANCE_STATUS.VIDEO}" ${att.status === ATTENDANCE_STATUS.VIDEO ? 'checked' : ''}>
+                            <label for="video-${student.id}" class="status_text video">Video</label>
+                        </div>
+                        <div class="attendance_option">
+                            <input type="radio" name="attendance-${student.id}" id="excused-${student.id}" value="${ATTENDANCE_STATUS.EXCUSED}" ${att.status === ATTENDANCE_STATUS.EXCUSED ? 'checked' : ''}>
+                            <label for="excused-${student.id}" class="status_text excused">Excused</label>
+                        </div>
+                        <div class="attendance_option">
+                            <input type="radio" name="attendance-${student.id}" id="none-${student.id}" value="${ATTENDANCE_STATUS.NONE}" ${att.status === ATTENDANCE_STATUS.NONE ? 'checked' : ''}>
+                            <label for="none-${student.id}" class="status_text none">None</label>
                         </div>
                     </div>
                 `;
@@ -922,11 +983,29 @@
             // Update attendance data
             const updatedAttendances = Array.from(elements.attendanceStudentsContainer.querySelectorAll('.student_row')).map(row => {
                 const studentId = row.dataset.studentId;
-                const status = row.querySelector('input[type="radio"]:checked').value;
+                const checkedRadio = row.querySelector('input[type="radio"]:checked');
                 
+                // If a radio is checked, use its value
+                if (checkedRadio) {
+                    return {
+                        studentId,
+                        status: checkedRadio.value
+                    };
+                }
+                
+                // Find existing record to maintain current status
+                const existingRecord = currentAttendanceData.find(a => a.student_id === studentId);
+                if (existingRecord) {
+                    return {
+                        studentId,
+                        status: existingRecord.status
+                    };
+                }
+                
+                // Default to none if no existing record and no selection
                 return {
                     studentId,
-                    status
+                    status: ATTENDANCE_STATUS.NONE
                 };
             });
             
