@@ -433,13 +433,18 @@
                     }
                      else {
                         studentAttendanceCounts.absent++;
-                    }
-                    
-                    // Add cell with status
+                     }
+
+                    // Add cell with status and homework completion
                     html += `
-                        <td class="attendance_cell ${status}" data-lecture-id="${lecture.id}" data-student-id="${student.id}">
+                    <td class="attendance_cell ${status}" data-lecture-id="${lecture.id}" data-student-id="${student.id}">
+                        <div class="attendance_indicators">
                             <div class="status_indicator ${status}"></div>
-                        </td>
+                            <div class="homework_progress" style="${getHomeworkProgressStyle(student.id, lecture.id)}">
+                                <span class="homework_percentage">${getHomeworkPercentage(student.id, lecture.id)}</span>
+                            </div>
+                        </div>
+                    </td>
                     `;
                 }
                 
@@ -540,6 +545,47 @@
         }
     }
     
+    // Get homework completion percentage for a student/lecture
+    function getHomeworkPercentage(studentId, lectureId) {
+        const homework = homeworkData.find(hw => 
+            hw.lecture_id === lectureId && hw.student_id === studentId
+        );
+        
+        if (!homework || homework.total_problems === 0) {
+            return 'N\/A';
+        }
+        
+        const percentage = Math.round((homework.completed_problems / homework.total_problems) * 100);
+        return `${percentage}%`;
+    }
+
+    // Generate CSS for the circular progress bar
+    function getHomeworkProgressStyle(studentId, lectureId) {
+        const homework = homeworkData.find(hw => 
+            hw.lecture_id === lectureId && hw.student_id === studentId
+        );
+        
+        if (!homework || homework.total_problems === 0) {
+            return '--percentage: 0; --color: #545861;';
+        }
+        
+        const percentage = Math.round((homework.completed_problems / homework.total_problems) * 100);
+        let color;
+        
+        if (percentage >= 90) {
+            color = '#17B26A'; // Excellent - green
+        } else if (percentage >= 70) {
+            color = '#84cc16'; // Good - light green
+        } else if (percentage >= 50) {
+            color = '#F79009'; // Average - orange
+        } else if (percentage >= 30) {
+            color = '#fb7185'; // Below average - light red
+        } else {
+            color = '#F04438'; // Poor - red
+        }
+        
+        return `--percentage: ${percentage}; --color: ${color};`;
+    }
     // Setup interactions for the attendance table
     function setupAttendanceTableInteractions() {
         // Add click event for lecture columns to select that lecture
@@ -778,7 +824,7 @@
                         student_id: student.id,
                         total_problems: currentTotalProblems,
                         completed_problems: 0,
-                        classification: HOMEWORK_CLASSIFICATION.INCOMPLETE,
+                        classification: HOMEWORK_CLASSIFICATION.NONE,
                         comments: ''
                     });
                 }
@@ -841,7 +887,6 @@
                 studentRow.innerHTML = `
                     <div class="student_info">
                         <div class="student_name">${student.name}</div>
-                        <div class="student_school">${student.school} - ${student.generation}기</div>
                     </div>
                     <div class="attendance_options">
                         <div class="attendance_option">
@@ -899,7 +944,6 @@
                 studentRow.innerHTML = `
                     <div class="student_info">
                         <div class="student_name">${student.name}</div>
-                        <div class="student_school">${student.school} - ${student.generation}기</div>
                     </div>
                     <div class="homework_row">
                         <div class="homework_header">

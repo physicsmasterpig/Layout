@@ -333,6 +333,54 @@
         background-color: rgba(240, 68, 56, 0.1);
         color: #F04438;
     }
+
+    /* Add to your CSS */
+    .attendance_indicators {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .homework_progress {
+        position: relative;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: conic-gradient(
+            var(--color) calc(var(--percentage) * 1%),
+            #22262F calc(var(--percentage) * 1%)
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .homework_progress::before {
+        content: '';
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background-color: #0C0E12;
+    }
+
+    .homework_percentage {
+        position: relative;
+        font-size: 8px;
+        font-weight: bold;
+        color: var(--color);
+        z-index: 1;
+    }
+
+    /* Update the existing attendance_cell to accommodate both elements */
+    .attendance_table td.attendance_cell {
+        padding: 12px 8px;
+        text-align: center;
+        width: 60px;
+        cursor: pointer;
+        position: relative;
+    }
     
     /* Lecture Details Section */
     .lecture_details_section {
@@ -676,10 +724,10 @@
         margin-bottom: 4px;
     }
     
-    .student_school {
+    /* .student_school {
         font-size: 14px;
         color: #94979C;
-    }
+    } */
     
     .attendance_options {
         display: flex;
@@ -737,7 +785,7 @@
     }
     /* Homework Row Styles */
     .homework_row {
-        width: 100%;
+        width: 90%;
         margin-top: 12px;
         padding: 12px;
         background-color: #191D24;
