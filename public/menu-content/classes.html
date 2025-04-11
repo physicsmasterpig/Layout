@@ -1,0 +1,879 @@
+<!-- Classes page content -->
+<style>
+    /* Classes Overview Styles */
+    .classes_overview_container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .classes_overview_wrapper {
+        width: 30%;
+        height: 60px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        padding: 20px;
+        gap: 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .classes_overview_wrapper:hover {
+        background-color: #13161B;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .classes_overview_wrapper h1 {
+        font-size: 18px;
+        font-weight: normal;
+        color: #545861;
+    }
+    
+    .classes_overview_wrapper h2 {
+        font-size: 24px;
+        font-weight: bold;
+        color: #FFFFFF;
+    }
+
+    /* Table Styles */
+    .table_container {
+        width: 100%;
+    }
+    
+    .table_container .table_header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .table_container .table_header .searchbox {
+        width: 30%;
+        height: 40px;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        display: flex;
+        background-color: #13161B;
+        overflow: hidden;
+    }
+    
+    .table_container .table_header .searchbox input {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background-color: transparent;
+        color: #FFFFFF;
+        padding: 0 16px;
+        font-size: 14px;
+    }
+    
+    .table_container .table_header .searchbox input::placeholder {
+        color: #545861;
+    }
+    
+    .table_container .table_header .button_group {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .table_container .table_header .button_group .button {
+        height: 40px;
+        padding: 0 20px;
+        background-color: #7F56D9;
+        color: #FFFFFF;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .table_container .table_header .button_group .button:hover {
+        background-color: #6C4CC3;
+        transform: translateY(-2px);
+    }
+    
+    .table_container .table_content {
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .table_container .table_content table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: #13161B;
+    }
+    
+    .table_container .table_content table thead {
+        color: #545861;
+        height: 44px;
+        text-align: left;
+    }
+    
+    .table_container .table_content table thead th {
+        padding: 0 20px;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .table_container .table_content table tbody {
+        background-color: #0C0E12;
+        color: #FFFFFF;
+        text-align: left;
+    }
+    
+    .table_container .table_content table tbody tr {
+        height: 60px;
+        border-bottom: 1px solid #22262F;
+        transition: all 0.2s ease;
+    }
+    
+    .table_container .table_content table tbody tr:hover {
+        background-color: #13161B;
+    }
+    
+    .table_container .table_content table tbody td {
+        padding: 0 20px;
+        font-size: 14px;
+    }
+    
+    .table_container .table_content table tbody td svg {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .table_container .table_content table tbody td svg:hover {
+        opacity: 0.8;
+    }
+    
+    .table_container .table_footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 60px;
+        border-bottom: 1px solid #22262F;
+        border-left: 1px solid #22262F;
+        border-right: 1px solid #22262F;
+        border-bottom-right-radius: 10px;
+        border-bottom-left-radius: 10px;
+        padding: 0 20px;
+        background-color: #13161B;
+    }
+    
+    .table_container .table_footer .page_button {
+        min-width: 100px;
+        height: 40px;
+        color: #FFFFFF;
+        background-color: #0C0E12;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .table_container .table_footer .page_button:hover {
+        background-color: #1E2128;
+    }
+    
+    .table_container .table_footer h1 {
+        color: #545861;
+        font-size: 14px;
+        font-weight: normal;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+    
+    .modal-content {
+        background-color: #13161B;
+        border: 1px solid #22262F;
+        border-radius: 10px;
+        padding: 24px;
+        max-width: 700px;
+        width: 90%;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        color: #FFFFFF;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-content h2 {
+        color: #7F56D9;
+        margin-top: 0;
+        margin-bottom: 24px;
+        font-size: 24px;
+        text-align: center;
+    }
+    
+    .close-btn {
+        width: 100px;
+        height: 40px;
+        background-color: transparent;
+        border: 1px solid #4D5057;
+        color: #FFFFFF;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .close-btn:hover {
+        background-color: #1E2128;
+    }
+    
+    .submit-btn {
+        width: 100px;
+        height: 40px;
+        background-color: #7F56D9;
+        color: #FFFFFF;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .submit-btn:hover {
+        background-color: #6C4CC3;
+    }
+    
+    .show {
+        display: flex !important;
+    }
+    
+    /* Tab Navigation Styles */
+    .tab-navigation {
+        display: flex;
+        border-bottom: 1px solid #22262F;
+        margin-bottom: 20px;
+        width: 100%;
+        flex-shrink: 0;
+    }
+    
+    .tab-button {
+        flex: 1;
+        padding: 10px 20px;
+        background-color: transparent;
+        border: none;
+        color: #545861;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        font-weight: 600;
+    }
+    
+    .tab-button.active {
+        color: #7F56D9;
+    }
+    
+    .tab-button.active:after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background-color: #7F56D9;
+    }
+    
+    /* Tab Content Styles */
+    .tab-content {
+        display: none;
+        padding: 20px 0;
+        color: #FFFFFF;
+        width: 100%;
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+    
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 16px;
+        width: 100%;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #22262F;
+        border-radius: 8px;
+        background-color: #0C0E12;
+        color: #FFFFFF;
+        margin-bottom: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .form-select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #22262F;
+        border-radius: 8px;
+        background-color: #0C0E12;
+        color: #FFFFFF;
+        margin-bottom: 8px;
+        transition: all 0.2s ease;
+    }
+    
+    .form-input:focus, .form-select:focus {
+        border-color: #7F56D9;
+        outline: none;
+    }
+    
+    .form-actions {
+        margin-top: 24px;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        width: 100%;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #CECFD2;
+    }
+
+    /* Lecture Section Styles */
+    .section-title {
+        color: #7F56D9;
+        margin: 24px 0 16px 0;
+        font-size: 18px;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .divider {
+        height: 1px;
+        background-color: #22262F;
+        margin: 20px 0;
+        opacity: 0.5;
+    }
+
+    .lectures-container {
+        margin-top: 20px;
+    }
+
+    .lecture-entry {
+        border: 1px solid #22262F;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+        background-color: rgba(127, 86, 217, 0.05);
+        transition: all 0.2s ease;
+    }
+    
+    .lecture-entry:hover {
+        background-color: rgba(127, 86, 217, 0.1);
+    }
+    
+    .lecture-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        align-items: center;
+    }
+    
+    .lecture-number {
+        font-weight: 600;
+        color: #7F56D9;
+    }
+    
+    .remove-lecture {
+        color: #F04438;
+        cursor: pointer;
+        font-size: 14px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .remove-lecture:hover {
+        background-color: rgba(240, 68, 56, 0.1);
+    }
+
+    .add-lecture-btn {
+        width: 100%;
+        padding: 12px;
+        background-color: transparent;
+        border: 1px dashed #7F56D9;
+        color: #7F56D9;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-top: 12px;
+        transition: all 0.3s ease;
+        font-weight: 600;
+    }
+    
+    .add-lecture-btn:hover {
+        background-color: rgba(127, 86, 217, 0.1);
+    }
+
+    /* Student Selection Styles */
+    .student-selection-section {
+        margin-top: 24px;
+    }
+
+    .student-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #22262F;
+        border-radius: 8px;
+        padding: 8px;
+        background-color: #0C0E12;
+        margin-top: 12px;
+    }
+
+    .student-item {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .student-item:hover {
+        background-color: #1E2128;
+    }
+
+    .student-checkbox {
+        margin-right: 10px;
+        accent-color: #7F56D9;
+    }
+
+    .student-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .student-name {
+        font-weight: 600;
+    }
+
+    .student-detail {
+        font-size: 12px;
+        color: #545861;
+    }
+
+    .student-filter {
+        margin-bottom: 12px;
+    }
+
+    .student-filter input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #22262F;
+        border-radius: 8px;
+        background-color: #0C0E12;
+        color: #FFFFFF;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 16px;
+    }
+
+    .form-row .form-group {
+        flex: 1;
+    }
+
+    /* Selected students badge */
+    .selected-count {
+        display: inline-block;
+        padding: 4px 8px;
+        background-color: #7F56D9;
+        color: white;
+        border-radius: 10px;
+        font-size: 12px;
+        margin-left: 10px;
+    }
+
+    /* Status badge and action button styles */
+    .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+    }
+    
+    .status-badge.active {
+        background-color: rgba(23, 178, 106, 0.1);
+        color: #17B26A;
+    }
+    
+    .status-badge.inactive {
+        background-color: rgba(240, 68, 56, 0.1);
+        color: #F04438;
+    }
+    
+    .action-button {
+        padding: 6px 12px;
+        background-color: #7F56D9;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .action-button:hover {
+        background-color: #6C4CC3;
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .class-name-id {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .class-name {
+        font-size: 24px;
+        font-weight: bold;
+        color: #7F56D9;
+    }
+
+    .class-id {
+        color: #545861;
+        font-size: 14px;
+    }
+
+    .class-status {
+        padding: 6px 12px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .status-active {
+        background-color: rgba(23, 178, 106, 0.1);
+        color: #17B26A;
+    }
+
+    .status-inactive {
+        background-color: rgba(240, 68, 56, 0.1);
+        color: #F04438;
+    }
+
+    .class-details-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .detail-item {
+        background-color: #0C0E12;
+        border-radius: 8px;
+        padding: 12px;
+    }
+
+    .detail-label {
+        color: #545861;
+        font-size: 12px;
+        margin-bottom: 4px;
+    }
+
+    .detail-value {
+        color: #FFFFFF;
+        font-size: 16px;
+    }
+
+    .detail-tabs {
+        margin-top: 32px;
+    }
+
+    .enrolled-students-list {
+        margin-top: 16px;
+    }
+
+    .enrolled-student-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px;
+        border-bottom: 1px solid #22262F;
+    }
+
+    .enrolled-student-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .enrolled-student-name {
+        font-weight: 600;
+    }
+
+    .enrolled-student-detail {
+        font-size: 12px;
+        color: #545861;
+    }
+
+    .lectures-list-item {
+        padding: 16px;
+        border-bottom: 1px solid #22262F;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .lecture-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .lecture-title {
+        font-weight: 600;
+    }
+
+    .lecture-date {
+        font-size: 12px;
+        color: #545861;
+    }
+
+    .lecture-button {
+        padding: 8px 12px;
+        border-radius: 8px;
+        background-color: #7F56D9;
+        color: white;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .lecture-button:hover {
+        background-color: #6C4CC3;
+    }
+</style>
+
+<div class="classes_overview_container">
+    <div class="classes_overview_wrapper">
+        <h1>Active classes</h1>
+        <h2 id="active-classes-count">0</h2>
+    </div>
+    <div class="classes_overview_wrapper">
+        <h1>Total classes</h1>
+        <h2 id="total-classes-count">0</h2>
+    </div>
+    <div class="classes_overview_wrapper">
+        <h1>Total students</h1>
+        <h2 id="total-enrolled-count">0</h2>
+    </div>
+</div>
+
+<div class="table_container">
+    <div class="table_header">
+        <div class="searchbox">
+            <input type="text" placeholder="Search classes...">
+        </div>
+        <div class="button_group">
+            <button class="button" id="openModalBtn">Add class</button>
+        </div>
+    </div>
+    <div class="table_content">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>School</th>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Generation</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                    <th>Manage</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Table content will be loaded dynamically -->
+            </tbody>
+        </table>
+        <div class="table_footer">
+            <button class="page_button" id="previous_button">Previous</button>
+            <h1 class="range_info">Page 1 of 1</h1>
+            <button class="page_button" id="next_button">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Class Modal -->
+<div class="modal-overlay" id="add-class-modal">
+    <div class="modal-content">
+        <h2>Create New Class</h2>
+        
+        <!-- Class Information Section -->
+        <div class="class-info-section">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">School</label>
+                    <input type="text" id="class-school" class="form-input" placeholder="e.g. 경기북과학고등학교">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Year</label>
+                    <input type="number" id="class-year" class="form-input" placeholder="e.g. 2025">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Semester</label>
+                    <select id="class-semester" class="form-select">
+                        <option value="1">1st Semester</option>
+                        <option value="2">2nd Semester</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Generation</label>
+                    <input type="number" id="class-generation" class="form-input" placeholder="e.g. 21">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Schedule</label>
+                <input type="text" id="class-schedule" class="form-input" placeholder="e.g. Fri 19PM-22PM">
+            </div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <!-- Lectures Section -->
+        <div class="lectures-section">
+            <div class="section-title">
+                <span>Lectures Schedule</span>
+            </div>
+            
+            <div id="lectures-container" class="lectures-container">
+                <!-- First lecture entry (always present) -->
+                <div class="lecture-entry" data-lecture-index="0">
+                    <div class="lecture-header">
+                        <span class="lecture-number">Lecture 1</span>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Topic</label>
+                            <input type="text" class="form-input lecture-topic" placeholder="Lecture topic">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date</label>
+                            <input type="date" class="form-input lecture-date">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Time</label>
+                        <input type="time" class="form-input lecture-time">
+                    </div>
+                </div>
+            </div>
+            
+            <button class="add-lecture-btn" id="add-more-lectures">
+                <span>+ Add another lecture</span>
+            </button>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <!-- Student Enrollment Section -->
+        <div class="student-selection-section">
+            <div class="section-title">
+                <span>Enroll Students <span id="selected-count" class="selected-count">0 selected</span></span>
+            </div>
+            
+            <div class="student-filter">
+                <input type="text" id="student-search" placeholder="Search students...">
+            </div>
+            
+            <div id="student-list" class="student-list">
+                <!-- Student items will be loaded dynamically -->
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button class="submit-btn" id="submit-class-btn">Create Class</button>
+            <button class="close-btn" id="close-modal-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- View Class Details Modal -->
+<div class="modal-overlay" id="class-details-modal">
+    <div class="modal-content">
+        <div class="class-detail-header">
+            <div class="class-name-id">
+                <span class="class-name" id="detail-class-school">School Name</span>
+                <span class="class-id" id="detail-class-id">Class ID</span>
+            </div>
+            <span class="class-status status-active" id="detail-class-status">Active</span>
+        </div>
+        
+        <div class="class-details-grid">
+            <div class="detail-item">
+                <div class="detail-label">Year</div>
+                <div class="detail-value" id="detail-year">2025</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Semester</div>
+                <div class="detail-value" id="detail-semester">1</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Generation</div>
+                <div class="detail-value" id="detail-generation">21</div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">Schedule</div>
+                <div class="detail-value" id="detail-schedule">Fri 19PM-22PM</div>
+            </div>
+        </div>
+        
+        <div class="detail-tabs">
+            <div class="tab-navigation">
+                <button class="tab-button active" data-tab="students">Enrolled Students</button>
+                <button class="tab-button" data-tab="lectures">Lectures</button>
+            </div>
+            
+            <div class="tab-content active" id="students-tab">
+                <div class="enrolled-students-list" id="enrolled-students-container">
+                    <!-- Enrolled students will be loaded dynamically -->
+                </div>
+            </div>
+            
+            <div class="tab-content" id="lectures-tab">
+                <div class="lectures-list" id="lectures-list-container">
+                    <!-- Lectures will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button class="close-btn" id="detail-close-btn">Close</button>
+        </div>
+    </div>
+</div>
